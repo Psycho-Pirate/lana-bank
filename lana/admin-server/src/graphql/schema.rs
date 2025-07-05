@@ -782,6 +782,26 @@ impl Query {
                 .list_for_ledger_account_id_paginated(sub, ledger_account_id, query)
         )
     }
+    async fn latest_accounting_csv_for_ledger_account_id(
+        &self,
+        ctx: &Context<'_>,
+        ledger_account_id: UUID,
+    ) -> async_graphql::Result<Option<AccountingCsvDocument>> {
+        let (app, sub) = app_and_sub_from_ctx!(ctx);
+
+        let docs = app
+            .accounting()
+            .csvs()
+            .list_for_ledger_account_id(sub, ledger_account_id)
+            .await?;
+
+        let latest = docs
+            .into_iter()
+            .max_by_key(|doc| doc.created_at())
+            .map(AccountingCsvDocument::from);
+
+        Ok(latest)
+    }
 }
 
 pub struct Mutation;
