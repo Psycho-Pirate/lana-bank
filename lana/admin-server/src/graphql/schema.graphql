@@ -1637,6 +1637,7 @@ type Query {
 	accountingCsvsForLedgerAccountId(ledgerAccountId: UUID!, first: Int!, after: String): AccountingCsvDocumentConnection!
 	publicIdTarget(id: PublicId!): PublicIdTarget
 	loanAgreement(id: UUID!): LoanAgreement
+	latestAccountingCsvForLedgerAccountId(ledgerAccountId: UUID!): AccountingCsvDocument
 }
 
 type RealtimePrice {

@@ -9,7 +9,8 @@ use ::job::JobId;
 use audit::AuditSvc;
 use authz::PermissionCheck;
 use document_storage::{
-    Document, DocumentId, DocumentStorage, DocumentType, GeneratedDocumentDownloadLink, ReferenceId,
+    Document, DocumentId, DocumentStorage, DocumentType, DocumentsByCreatedAtCursor,
+    GeneratedDocumentDownloadLink, ReferenceId,
 };
 
 use crate::Jobs;
@@ -20,6 +21,7 @@ use super::{
 };
 
 use error::*;
+use es_entity::PaginatedQueryArgs;
 use job::*;
 pub use primitives::*;
 
@@ -190,6 +192,43 @@ where
             .await?;
 
         Ok(result)
+    }
+
+    #[instrument(
+        name = "core_accounting.csv.get_latest_for_ledger_account_id",
+        skip(self),
+        err
+    )]
+    pub async fn get_latest_for_ledger_account_id(
+        &self,
+        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
+        ledger_account_id: impl Into<LedgerAccountId> + std::fmt::Debug,
+    ) -> Result<Option<Document>, AccountingCsvExportError> {
+        let ledger_account_id = ledger_account_id.into();
+
+        let _audit_info = self
+            .authz
+            .enforce_permission(
+                sub,
+                CoreAccountingObject::all_accounting_csvs(),
+                CoreAccountingAction::ACCOUNTING_CSV_LIST,
+            )
+            .await?;
+
+        let query = PaginatedQueryArgs::<DocumentsByCreatedAtCursor> {
+            first: 1,
+            after: None,
+        };
+
+        let result = self
+            .document_storage
+            .list_for_reference_id_paginated(
+                ReferenceId::from(uuid::Uuid::from(ledger_account_id)),
+                query,
+            )
+            .await?;
+
+        Ok(result.entities.into_iter().next())
     }
 
     #[instrument(name = "core_accounting.csv.find_all_documents", skip(self), err)]

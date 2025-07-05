@@ -884,6 +884,23 @@ impl Query {
         let agreement = app.contract_creation().find_by_id(sub, id).await?;
         Ok(agreement.map(LoanAgreement::from))
     }
+
+    async fn latest_accounting_csv_for_ledger_account_id(
+        &self,
+        ctx: &Context<'_>,
+        ledger_account_id: UUID,
+    ) -> async_graphql::Result<Option<AccountingCsvDocument>> {
+        let (app, sub) = app_and_sub_from_ctx!(ctx);
+
+        let latest = app
+            .accounting()
+            .csvs()
+            .get_latest_for_ledger_account_id(sub, ledger_account_id)
+            .await?
+            .map(AccountingCsvDocument::from);
+
+        Ok(latest)
+    }
 }
 
 pub struct Mutation;

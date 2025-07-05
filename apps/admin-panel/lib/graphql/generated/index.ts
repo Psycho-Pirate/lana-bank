@@ -1821,6 +1821,7 @@ export type Query = {
   disbursalByPublicId?: Maybe<CreditFacilityDisbursal>;
   disbursals: CreditFacilityDisbursalConnection;
   journalEntries: JournalEntryConnection;
+  latestAccountingCsvForLedgerAccountId?: Maybe<AccountingCsvDocument>;
   ledgerAccount?: Maybe<LedgerAccount>;
   ledgerAccountByCode?: Maybe<LedgerAccount>;
   ledgerTransaction?: Maybe<LedgerTransaction>;
@@ -1977,6 +1978,11 @@ export type QueryDisbursalsArgs = {
 export type QueryJournalEntriesArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first: Scalars['Int']['input'];
+};
+
+
+export type QueryLatestAccountingCsvForLedgerAccountIdArgs = {
+  ledgerAccountId: Scalars['UUID']['input'];
 };
 
 
