@@ -1,6 +1,6 @@
 [package]
 name = "bitgo"
-version = "0.3.724-dev"
+version = "0.3.725-dev"
 license = "FSL-1.1-ALv2"
 edition = "2021"
 
