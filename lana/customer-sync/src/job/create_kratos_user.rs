@@ -129,9 +129,9 @@ where
 {
     async fn run(
         &self,
-        current_job: CurrentJob,
+        mut current_job: CurrentJob,
     ) -> Result<JobCompletion, Box<dyn std::error::Error>> {
-        let state = current_job
+        let mut state = current_job
             .execution_state::<CreateKratosUserJobData>()?
             .unwrap_or_default();
         let mut stream = self.outbox.listen_persisted(Some(state.sequence)).await?;
@@ -140,10 +140,12 @@ where
             if let Some(CoreCustomerEvent::CustomerCreated { .. }) = &message.as_ref().as_event() {
                 self.handle_create_kratos_user(message.as_ref()).await?;
             }
+
+            state.sequence = message.sequence;
+            current_job.update_execution_state(state.clone()).await?;
         }
 
-        let now = crate::time::now();
-        Ok(JobCompletion::RescheduleAt(now))
+        Ok(JobCompletion::RescheduleNow)
     }
 }
 
