@@ -107,7 +107,6 @@
   "Sidebar": {
     "labels": {
       "loans": "Loans",
-      "customers": "Customers",
       "transactions": "Transactions",
       "administration": "Administration",
       "financialReports": "Financial Reports",
@@ -135,7 +134,8 @@
       "trialBalance": "Trial Balance",
       "modules": "Modules",
       "transactionTemplates": "Transaction Templates",
-      "rolesAndPermissions": "Roles & Permissions"
+      "rolesAndPermissions": "Roles & Permissions",
+      "custodians": "Custodians"
     },
     "footer": {
       "appName": "Lana Bank",
@@ -170,6 +170,7 @@
       "updateTermsTemplate": "Update Terms Template",
       "createTermsTemplate": "Create Terms Template",
       "createCommittee": "Create Committee",
+      "createCustodian": "Add Custodian",
       "confirmWithdrawal": "Confirm Withdrawal",
       "cancelWithdrawal": "Cancel Withdrawal",
       "assignCommittee": "Assign Committee",
@@ -494,6 +495,13 @@
           "effectiveRate": "Effective Rate"
         }
       },
+      "WalletDialog": {
+        "title": "Wallet Details",
+        "details": {
+          "walletId": "Wallet ID",
+          "address": "Wallet Address"
+        }
+      },
       "CollateralCard": {
         "title": "Collateral",
         "details": {
@@ -538,6 +546,7 @@
         },
         "buttons": {
           "loanTerms": "Loan Terms",
+          "walletDetails": "Wallet Details",
           "updateCollateral": "Update Collateral",
           "approve": "Approve",
           "deny": "Deny"
@@ -563,6 +572,7 @@
         "form": {
           "labels": {
             "facilityAmount": "Facility Amount",
+            "custodian": "Custodian",
             "termsTemplate": "Terms Template",
             "creditFacilityTerms": "Credit Facility Terms",
             "interestRate": "Nominal Interest Rate",
@@ -575,6 +585,7 @@
           },
           "placeholders": {
             "facilityAmount": "Enter the facility amount",
+            "custodian": "Select a custodian",
             "termsTemplate": "Select from predefined terms template",
             "annualRate": "Enter the annual rate",
             "initialCvl": "Enter the initial CVL",
@@ -962,6 +973,39 @@
           "general": "An unexpected error occurred. Please try again."
         }
       }
+    }
+  },
+  "Custodians": {
+    "title": "Custodians",
+    "description": "Manage digital asset custody providers and their secure configurations",
+    "table": {
+      "headers": {
+        "name": "Name",
+        "created": "Created"
+      }
+    },
+    "create": {
+      "title": "Add New Custodian",
+      "description": "Add a new custodian service provider to manage digital assets",
+      "fields": {
+        "type": "Provider",
+        "name": "Name",
+        "apiKey": "API Key",
+        "apiSecret": "API Secret",
+        "secretKey": "Secret Key",
+        "testingInstance": "Use Testing Environment"
+      },
+      "placeholders": {
+        "selectType": "Select a Provider",
+        "name": "Enter a display name for this custodian",
+        "apiKey": "Enter your API key",
+        "apiSecret": "Enter your API secret",
+        "secretKey": "Enter your secret key"
+      },
+      "buttons": {
+        "create": "Add Custodian"
+      },
+      "success": "Custodian added successfully"
     }
   },
   "Deposits": {
@@ -1420,6 +1464,7 @@
       "user": "User",
       "termsTemplate": "Terms Template",
       "committee": "Committee",
+      "custodian": "Add Custodian",
       "executeManualTransaction": "Execute Manual Transaction",
       "role": "Role"
     }
