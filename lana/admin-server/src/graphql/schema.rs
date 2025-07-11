@@ -17,7 +17,8 @@ use super::{
     access::*, accounting::*, approval_process::*, audit::*, authenticated_subject::*,
     balance_sheet_config::*, committee::*, credit_config::*, credit_facility::*, custody::*,
     customer::*, dashboard::*, deposit::*, deposit_config::*, document::*, loader::*, policy::*,
-    price::*, profit_and_loss_config::*, report::*, sumsub::*, terms_template::*, withdrawal::*,
+    price::*, profit_and_loss_config::*, public_id::*, report::*, sumsub::*, terms_template::*,
+    withdrawal::*,
 };
 
 pub struct Query;
@@ -775,6 +776,26 @@ impl Query {
                 .csvs()
                 .list_for_ledger_account_id_paginated(sub, ledger_account_id, query)
         )
+    }
+
+    async fn public_id_target(
+        &self,
+        ctx: &Context<'_>,
+        id: PublicId,
+    ) -> async_graphql::Result<Option<PublicIdTarget>> {
+        let (app, _sub) = app_and_sub_from_ctx!(ctx);
+        let Some(public_id) = app.public_ids().find_by_id(id).await? else {
+            return Ok(None);
+        };
+
+        let res = match public_id.target_type.as_str() {
+            "customer" => self
+                .customer(ctx, public_id.target_id.into())
+                .await?
+                .map(PublicIdTarget::Customer),
+            _ => unreachable!(),
+        };
+        Ok(res)
     }
 }
 

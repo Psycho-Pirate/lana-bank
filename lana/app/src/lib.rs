@@ -53,8 +53,8 @@ pub mod access {
 
 pub mod customer {
     pub use core_customer::{
-        AccountStatus, Customer, CustomerDocumentId, CustomerId, CustomerType, CustomersCursor,
-        CustomersSortBy, FindManyCustomers, KycLevel, Sort, error,
+        AccountStatus, CUSTOMER_REF_TARGET, Customer, CustomerDocumentId, CustomerId, CustomerType,
+        CustomersCursor, CustomersSortBy, FindManyCustomers, KycLevel, Sort, error,
     };
     pub type Customers =
         core_customer::Customers<crate::authorization::Authorization, lana_events::LanaEvent>;
@@ -166,4 +166,8 @@ pub mod terms {
         AnnualRatePct, CVLPct, CollateralizationState, FacilityDuration, InterestInterval,
         ObligationDuration, OneTimeFeeRatePct, TermValues,
     };
+}
+
+pub mod public_id {
+    pub use public_id::{PublicId, PublicIdEntity, PublicIdTargetType, PublicIds, error};
 }

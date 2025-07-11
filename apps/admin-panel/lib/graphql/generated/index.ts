@@ -28,6 +28,7 @@ export type Scalars = {
   Date: { input: any; output: any; }
   Decimal: { input: any; output: any; }
   OneTimeFeeRatePct: { input: any; output: any; }
+  PublicId: { input: any; output: any; }
   Satoshis: { input: Satoshis; output: Satoshis; }
   SignedSatoshis: { input: SignedSatoshis; output: SignedSatoshis; }
   SignedUsdCents: { input: SignedUsdCents; output: SignedUsdCents; }
@@ -803,6 +804,7 @@ export type Customer = {
   email: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   level: KycLevel;
+  publicId: Scalars['PublicId']['output'];
   status: AccountStatus;
   subjectCanCreateCreditFacility: Scalars['Boolean']['output'];
   telegramId: Scalars['String']['output'];
@@ -1697,6 +1699,8 @@ export type ProfitAndLossStatementModuleConfigurePayload = {
   profitAndLossConfig: ProfitAndLossStatementModuleConfig;
 };
 
+export type PublicIdTarget = Customer;
+
 export type Query = {
   __typename?: 'Query';
   accountingCsvsForLedgerAccountId: AccountingCsvDocumentConnection;
@@ -1733,6 +1737,7 @@ export type Query = {
   policy?: Maybe<Policy>;
   profitAndLossStatement: ProfitAndLossStatement;
   profitAndLossStatementConfig?: Maybe<ProfitAndLossStatementModuleConfig>;
+  publicIdTarget?: Maybe<PublicIdTarget>;
   realtimePrice: RealtimePrice;
   report?: Maybe<Report>;
   reports: Array<Report>;
@@ -1902,6 +1907,11 @@ export type QueryPolicyArgs = {
 export type QueryProfitAndLossStatementArgs = {
   from: Scalars['Date']['input'];
   until?: InputMaybe<Scalars['Date']['input']>;
+};
+
+
+export type QueryPublicIdTargetArgs = {
+  id: Scalars['PublicId']['input'];
 };
 
 

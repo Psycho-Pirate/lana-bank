@@ -25,6 +25,7 @@ members = [
   "core/credit",
   "core/custody",
   "core/document-storage",
+  "core/public-id",
 
   "lib/authz",
   "lib/audit",
@@ -35,16 +36,15 @@ members = [
   "lib/kratos-admin",
   "lib/bitgo",
   "lib/komainu",
-  "lib/cloud-storage"
-]
+  "lib/cloud-storage"]
 
 [workspace.dependencies]
 # es-entity = { git = "https://github.com/galoymoney/cala.git", branch = "main" }
 # sim-time = { git = "https://github.com/galoymoney/cala.git", branch = "main" }
 # cala-ledger = { git = "https://github.com/galoymoney/cala.git", branch = "main" }
-es-entity = "0.6.8"
-sim-time = "0.6.8"
-cala-ledger = "0.6.8"
+es-entity = "0.6.9"
+sim-time = "0.6.9"
+cala-ledger = "0.6.9"
 
 anyhow = "1.0.98"
 async-graphql = { version = "7.0.17", default-features = false, features = [

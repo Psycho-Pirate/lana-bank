@@ -64,6 +64,9 @@
           "format": "uuid",
           "type": "string"
         },
+        "public_id": {
+          "type": "string"
+        },
         "telegram_id": {
           "type": "string"
         },
@@ -78,6 +81,7 @@
         "email",
         "telegram_id",
         "customer_type",
+        "public_id",
         "audit_info"
       ],
       "type": "object"

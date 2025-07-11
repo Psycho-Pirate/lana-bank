@@ -3,6 +3,7 @@ mod error;
 use async_graphql::*;
 
 use crate::primitives::*;
+use lana_app::public_id::PublicId;
 
 use super::{
     credit_facility::*, deposit_account::*, document::CustomerDocument, primitives::SortDirection,
@@ -51,6 +52,10 @@ impl Customer {
 
     async fn telegram_id(&self) -> &str {
         &self.entity.telegram_id
+    }
+
+    async fn public_id(&self) -> &PublicId {
+        &self.entity.public_id
     }
 
     async fn applicant_id(&self) -> Option<&str> {

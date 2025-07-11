@@ -792,6 +792,7 @@ type Customer {
 	customerType: CustomerType!
 	email: String!
 	telegramId: String!
+	publicId: PublicId!
 	applicantId: String
 	depositAccount: DepositAccount
 	creditFacilities: [CreditFacility!]!
@@ -1512,6 +1513,10 @@ type ProfitAndLossStatementModuleConfigurePayload {
 	profitAndLossConfig: ProfitAndLossStatementModuleConfig!
 }
 
+scalar PublicId
+
+union PublicIdTarget = Customer
+
 type Query {
 	me: Subject!
 	dashboard: Dashboard!
@@ -1560,6 +1565,7 @@ type Query {
 	balanceSheetConfig: BalanceSheetModuleConfig
 	profitAndLossStatementConfig: ProfitAndLossStatementModuleConfig
 	accountingCsvsForLedgerAccountId(ledgerAccountId: UUID!, first: Int!, after: String): AccountingCsvDocumentConnection!
+	publicIdTarget(id: PublicId!): PublicIdTarget
 }
 
 type RealtimePrice {

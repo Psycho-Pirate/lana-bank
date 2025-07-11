@@ -1,0 +1,22 @@
+[package]
+name = "public-id"
+version = "0.3.721-dev"
+edition = "2024"
+license = "FSL-1.1-ALv2"
+
+[features]
+default = []
+fail-on-warnings = []
+graphql = ["dep:async-graphql", "es-entity/graphql"]
+json-schema = ["dep:schemars", "es-entity/json-schema"]
+
+[dependencies]
+
+es-entity = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+derive_builder = { workspace = true }
+tracing = { workspace = true }
+schemars = { workspace = true, optional = true }
+async-graphql = { workspace = true, optional = true }

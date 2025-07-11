@@ -17,6 +17,7 @@ use document_storage::{
     Document, DocumentId, DocumentStorage, DocumentType, GeneratedDocumentDownloadLink,
 };
 use outbox::{Outbox, OutboxEventMarker};
+use public_id::PublicIds;
 
 pub use entity::Customer;
 use entity::*;
@@ -43,6 +44,7 @@ where
     outbox: Outbox<E>,
     repo: CustomerRepo<E>,
     document_storage: DocumentStorage,
+    public_ids: PublicIds,
 }
 
 impl<Perms, E> Clone for Customers<Perms, E>
@@ -56,6 +58,7 @@ where
             outbox: self.outbox.clone(),
             repo: self.repo.clone(),
             document_storage: self.document_storage.clone(),
+            public_ids: self.public_ids.clone(),
         }
     }
 }
@@ -72,6 +75,7 @@ where
         authz: &Perms,
         outbox: &Outbox<E>,
         document_storage: DocumentStorage,
+        public_id_service: PublicIds,
     ) -> Self {
         let publisher = CustomerPublisher::new(outbox);
         let repo = CustomerRepo::new(pool, &publisher);
@@ -80,6 +84,7 @@ where
             authz: authz.clone(),
             outbox: outbox.clone(),
             document_storage,
+            public_ids: public_id_service,
         }
     }
 
@@ -112,19 +117,25 @@ where
             .await?
             .expect("audit info missing");
 
-        let email = email.into();
-        let telegram_id = telegram_id.into();
+        let customer_id = CustomerId::new();
+
+        let mut db = self.repo.begin_op().await?;
+
+        let public_id = self
+            .public_ids
+            .create_in_op(&mut db, CUSTOMER_REF_TARGET, customer_id)
+            .await?;
 
         let new_customer = NewCustomer::builder()
-            .id(CustomerId::new())
-            .email(email.clone())
-            .telegram_id(telegram_id)
+            .id(customer_id)
+            .email(email.into())
+            .telegram_id(telegram_id.into())
             .customer_type(customer_type)
+            .public_id(public_id.id)
             .audit_info(audit_info)
             .build()
             .expect("Could not build customer");
 
-        let mut db = self.repo.begin_op().await?;
         let customer = self.repo.create_in_op(&mut db, new_customer).await?;
 
         db.commit().await?;
@@ -188,6 +199,31 @@ where
             .await?;
 
         match self.repo.find_by_email(email).await {
+            Ok(customer) => Ok(Some(customer)),
+            Err(e) if e.was_not_found() => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    #[instrument(name = "customer.find_by_public_id", skip(self), err)]
+    pub async fn find_by_public_id(
+        &self,
+        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
+        public_id: impl Into<String> + std::fmt::Debug,
+    ) -> Result<Option<Customer>, CustomerError> {
+        self.authz
+            .enforce_permission(
+                sub,
+                CustomerObject::all_customers(),
+                CoreCustomerAction::CUSTOMER_READ,
+            )
+            .await?;
+
+        match self
+            .repo
+            .find_by_public_id(public_id::PublicId::new(public_id.into()))
+            .await
+        {
             Ok(customer) => Ok(Some(customer)),
             Err(e) if e.was_not_found() => Ok(None),
             Err(e) => Err(e),

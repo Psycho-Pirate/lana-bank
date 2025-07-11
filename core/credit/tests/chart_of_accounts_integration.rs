@@ -21,7 +21,9 @@ async fn chart_of_accounts_integration() -> anyhow::Result<()> {
     let document_storage = DocumentStorage::new(&pool, &storage);
 
     let governance = governance::Governance::new(&pool, &authz, &outbox);
-    let customers = core_customer::Customers::new(&pool, &authz, &outbox, document_storage);
+    let public_ids = public_id::PublicIds::new(&pool);
+    let customers =
+        core_customer::Customers::new(&pool, &authz, &outbox, document_storage, public_ids);
     let custody =
         core_custody::CoreCustody::init(&pool, &authz, helpers::custody_config(), &outbox).await?;
     let price = core_price::Price::new();

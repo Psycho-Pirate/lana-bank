@@ -110,12 +110,30 @@ CREATE TABLE core_withdrawal_events (
   UNIQUE(id, sequence)
 );
 
+CREATE TABLE core_public_ids (
+  id VARCHAR PRIMARY KEY,
+  target_id UUID NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE core_public_id_events (
+  id VARCHAR NOT NULL REFERENCES core_public_ids(id),
+  sequence INT NOT NULL,
+  event_type VARCHAR NOT NULL,
+  event JSONB NOT NULL,
+  recorded_at TIMESTAMPTZ NOT NULL,
+  UNIQUE(id, sequence)
+);
+
+CREATE SEQUENCE core_public_id_counter;
+
 CREATE TABLE core_customers (
   id UUID PRIMARY KEY,
   authentication_id UUID UNIQUE DEFAULT NULL,
   email VARCHAR NOT NULL UNIQUE,
   telegram_id VARCHAR NOT NULL UNIQUE,
   status VARCHAR NOT NULL,
+  public_id VARCHAR NOT NULL REFERENCES core_public_ids(id),
   created_at TIMESTAMPTZ NOT NULL
 );
 

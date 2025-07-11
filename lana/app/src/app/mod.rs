@@ -26,6 +26,7 @@ use crate::{
     outbox::Outbox,
     price::Price,
     primitives::Subject,
+    public_id::PublicIds,
     report::Reports,
     storage::Storage,
     user_onboarding::UserOnboarding,
@@ -52,6 +53,7 @@ pub struct LanaApp {
     outbox: Outbox,
     governance: Governance,
     dashboard: Dashboard,
+    public_ids: PublicIds,
     _user_onboarding: UserOnboarding,
     _customer_sync: CustomerSync,
 }
@@ -81,6 +83,7 @@ impl LanaApp {
         let price = Price::new();
         let storage = Storage::new(&config.storage);
         let documents = DocumentStorage::new(&pool, &storage);
+        let public_ids = PublicIds::new(&pool);
         let report = Reports::init(&pool, &config.report, &authz, &jobs, &storage).await?;
 
         let user_onboarding =
@@ -104,7 +107,13 @@ impl LanaApp {
 
         StatementsInit::statements(&accounting).await?;
 
-        let customers = Customers::new(&pool, &authz, &outbox, documents.clone());
+        let customers = Customers::new(
+            &pool,
+            &authz,
+            &outbox,
+            documents.clone(),
+            public_ids.clone(),
+        );
         let deposits = Deposits::init(
             &pool,
             &authz,
@@ -169,6 +178,7 @@ impl LanaApp {
             outbox,
             governance,
             dashboard,
+            public_ids,
             _user_onboarding: user_onboarding,
             _customer_sync: customer_sync,
         })
@@ -243,6 +253,10 @@ impl LanaApp {
 
     pub fn access(&self) -> &Access {
         &self.access
+    }
+
+    pub fn public_ids(&self) -> &PublicIds {
+        &self.public_ids
     }
 
     pub async fn get_visible_nav_items(
