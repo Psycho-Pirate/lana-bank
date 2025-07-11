@@ -136,8 +136,11 @@ where
             if let es_entity::Idempotent::Executed(NewChartAccountDetails {
                 parent_account_set_id,
                 new_account_set,
-            }) = chart.create_node(&spec, self.journal_id, audit_info.clone())
-            {
+            }) = chart.create_node_without_verifying_parent(
+                &spec,
+                self.journal_id,
+                audit_info.clone(),
+            ) {
                 let account_set_id = new_account_set.id;
                 new_account_sets.push(new_account_set);
                 if let Some(parent) = parent_account_set_id {
@@ -196,7 +199,7 @@ where
         let es_entity::Idempotent::Executed(NewChartAccountDetails {
             parent_account_set_id,
             new_account_set,
-        }) = chart.create_node(&spec, self.journal_id, audit_info.clone())
+        }) = chart.create_node(&spec, self.journal_id, audit_info.clone())?
         else {
             return Ok((chart, None));
         };

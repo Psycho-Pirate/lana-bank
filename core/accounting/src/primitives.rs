@@ -144,6 +144,12 @@ impl From<AccountCode> for Vec<AccountCodeSection> {
     }
 }
 
+impl From<&AccountCode> for Vec<AccountCodeSection> {
+    fn from(code: &AccountCode) -> Self {
+        code.sections.clone()
+    }
+}
+
 impl AccountCode {
     pub fn new(section: Vec<AccountCodeSection>) -> Self {
         AccountCode { sections: section }

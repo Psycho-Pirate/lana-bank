@@ -50,7 +50,7 @@ pub struct Chart {
 }
 
 impl Chart {
-    pub fn create_node(
+    pub(super) fn create_node_without_verifying_parent(
         &mut self,
         spec: &AccountSpec,
         journal_id: CalaJournalId,
@@ -99,7 +99,37 @@ impl Chart {
         })
     }
 
-    pub fn trial_balance_account_ids_from_new_accounts(
+    pub(super) fn create_node(
+        &mut self,
+        spec: &AccountSpec,
+        journal_id: CalaJournalId,
+        audit_info: AuditInfo,
+    ) -> Result<Idempotent<NewChartAccountDetails>, ChartOfAccountsError> {
+        let AccountSpec {
+            code, name, parent, ..
+        } = spec;
+
+        let mut checked_spec = spec.clone();
+        if let Some(parent) = parent {
+            let parent_normal_balance_type = self
+                .all_accounts
+                .get(parent)
+                .map(|AccountDetails { spec, .. }| spec.normal_balance_type)
+                .ok_or(ChartOfAccountsError::ParentAccountNotFound(
+                    parent.to_string(),
+                ))?;
+            checked_spec = AccountSpec::try_new(
+                Some(parent.clone()),
+                code.into(),
+                name.clone(),
+                parent_normal_balance_type,
+            )?;
+        }
+
+        Ok(self.create_node_without_verifying_parent(&checked_spec, journal_id, audit_info))
+    }
+
+    pub(super) fn trial_balance_account_ids_from_new_accounts(
         &self,
         new_account_set_ids: &[CalaAccountSetId],
     ) -> impl Iterator<Item = CalaAccountSetId> {
@@ -121,7 +151,7 @@ impl Chart {
             )
     }
 
-    pub fn trial_balance_account_id_from_new_account(
+    pub(super) fn trial_balance_account_id_from_new_account(
         &self,
         new_account_set_id: CalaAccountSetId,
     ) -> Option<CalaAccountSetId> {
@@ -424,7 +454,7 @@ mod test {
             new_account_set: level_1_new_account_set,
             ..
         } = chart
-            .create_node(
+            .create_node_without_verifying_parent(
                 &AccountSpec::try_new(
                     None,
                     vec![section("1")],
@@ -440,7 +470,7 @@ mod test {
             new_account_set: level_2_new_account_set,
             ..
         } = chart
-            .create_node(
+            .create_node_without_verifying_parent(
                 &AccountSpec::try_new(
                     Some(code("1")),
                     vec![section("1"), section("1")],
@@ -456,7 +486,7 @@ mod test {
             new_account_set: level_3_new_account_set,
             ..
         } = chart
-            .create_node(
+            .create_node_without_verifying_parent(
                 &AccountSpec::try_new(
                     Some(code("1.1")),
                     vec![section("1"), section("1"), section("1")],
@@ -488,6 +518,45 @@ mod test {
     }
 
     #[test]
+    fn errors_for_create_node_if_parent_node_does_not_exist() {
+        let (mut chart, _) = default_chart();
+
+        let res = chart.create_node(
+            &AccountSpec {
+                parent: Some(code("1.9")),
+                code: code("1.9.1"),
+                name: "Cash".parse::<AccountName>().unwrap(),
+                normal_balance_type: DebitOrCredit::Debit,
+            },
+            CalaJournalId::new(),
+            dummy_audit_info(),
+        );
+
+        assert!(matches!(
+            res,
+            Err(ChartOfAccountsError::ParentAccountNotFound(_))
+        ))
+    }
+
+    #[test]
+    fn unchecked_creates_node_if_parent_node_does_not_exist() {
+        let (mut chart, _) = default_chart();
+
+        let res = chart.create_node_without_verifying_parent(
+            &AccountSpec::try_new(
+                Some(code("1.9")),
+                vec![section("1"), section("9"), section("1")],
+                "Cash".parse::<AccountName>().unwrap(),
+                DebitOrCredit::Debit,
+            )
+            .unwrap(),
+            CalaJournalId::new(),
+            dummy_audit_info(),
+        );
+        assert!(res.did_execute());
+    }
+
+    #[test]
     fn adds_from_all_new_trial_balance_accounts() {
         let (chart, (level_1_id, level_2_id, level_3_id)) = default_chart();
 
@@ -510,7 +579,7 @@ mod test {
                 },
             ..
         } = chart
-            .create_node(
+            .create_node_without_verifying_parent(
                 &AccountSpec::try_new(
                     Some(code("1")),
                     vec![section("1"), section("2")],
