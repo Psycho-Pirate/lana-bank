@@ -35,7 +35,7 @@ sqlx-prepare:
 reset-deps: clean-deps start-deps setup-db
 
 run-server:
-	cargo run --features sim-time --bin lana-cli -- --config ./bats/lana.yml | tee .e2e-logs
+	cargo run --features sim-time,sumsub-testing --bin lana-cli -- --config ./bats/lana.yml | tee .e2e-logs
 
 run-server-with-bootstrap:
 	cargo run --all-features --bin lana-cli -- --config ./bats/lana.yml | tee .e2e-logs
@@ -100,10 +100,10 @@ sdl-js:
 	cd apps/admin-panel && pnpm install && pnpm codegen
 	cd apps/customer-portal && pnpm install && pnpm codegen
 
-full-sdl: sdl-rust sdl-js
+sdl: sdl-rust sdl-js
 
 # Cargo alternative for full SDL generation
-full-sdl-cargo: sdl-rust-cargo sdl-js
+sdl-cargo: sdl-rust-cargo sdl-js
 
 # Frontend Apps
 check-code-apps: sdl-js check-code-apps-admin-panel check-code-apps-customer-portal
