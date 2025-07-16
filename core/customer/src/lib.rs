@@ -576,12 +576,11 @@ where
             )
             .await?;
 
-        let document = self
-            .document_storage
-            .find_by_id(customer_document_id)
-            .await?;
-
-        Ok(document)
+        match self.document_storage.find_by_id(customer_document_id).await {
+            Ok(document) => Ok(Some(document)),
+            Err(e) if e.was_not_found() => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 
     #[instrument(name = "customer.find_all_documents", skip(self), err)]

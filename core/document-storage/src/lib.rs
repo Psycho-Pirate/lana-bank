@@ -12,9 +12,7 @@ use es_entity::ListDirection;
 use std::collections::HashMap;
 use tracing::instrument;
 
-pub use entity::{
-    Document, DocumentStatus, GeneratedDocumentDownloadLink, NewDocument, UploadStatus,
-};
+pub use entity::{Document, DocumentStatus, GeneratedDocumentDownloadLink, NewDocument};
 use error::*;
 pub use primitives::*;
 pub use repo::{document_cursor::DocumentsByCreatedAtCursor, DocumentRepo};
@@ -158,12 +156,8 @@ impl DocumentStorage {
     pub async fn find_by_id(
         &self,
         id: impl Into<DocumentId> + std::fmt::Debug + Copy,
-    ) -> Result<Option<Document>, DocumentStorageError> {
-        match self.repo.find_by_id(id.into()).await {
-            Ok(document) => Ok(Some(document)),
-            Err(e) if e.was_not_found() => Ok(None),
-            Err(e) => Err(e),
-        }
+    ) -> Result<Document, DocumentStorageError> {
+        self.repo.find_by_id(id.into()).await
     }
 
     #[instrument(name = "document_storage.list_for_reference_id", skip(self), err)]
