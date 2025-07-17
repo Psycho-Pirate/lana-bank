@@ -163,7 +163,8 @@ const CommandMenu = ({ open, onOpenChange }: CommandMenuProps) => {
     }
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setOpen])
 
   const menuItems = [
     {
