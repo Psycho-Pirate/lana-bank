@@ -288,6 +288,10 @@ where
         Ok(CompletionOutcome::Completed((credit_facility, completion)))
     }
 
+    #[instrument(
+        name = "credit.facility.complete_interest_cycle_and_maybe_start_new_cycle",
+        skip(self, db)
+    )]
     pub(super) async fn complete_interest_cycle_and_maybe_start_new_cycle(
         &self,
         db: &mut es_entity::DbOp<'_>,
@@ -338,7 +342,7 @@ where
         self.repo.find_by_id(id.into()).await
     }
 
-    #[instrument(name = "core_credit.credit_facility.find", skip(self), err)]
+    #[instrument(name = "credit.credit_facility.find_by_id", skip(self), err)]
     pub async fn find_by_id(
         &self,
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
@@ -461,7 +465,7 @@ where
         Ok(credit_facility)
     }
 
-    #[instrument(name = "core_credit.credit_facility.list", skip(self), err)]
+    #[instrument(name = "credit.credit_facility.list", skip(self), err)]
     pub async fn list(
         &self,
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
@@ -499,7 +503,7 @@ where
     }
 
     #[instrument(
-        name = "core_credit.credit_facility.list_by_collateralization_ratio",
+        name = "credit.credit_facility.list_by_collateralization_ratio",
         skip(self),
         err
     )]
@@ -527,7 +531,7 @@ where
             .await
     }
 
-    #[instrument(name = "core_credit.credit_facility.find_all", skip(self), err)]
+    #[instrument(name = "credit.credit_facility.find_all", skip(self), err)]
     pub async fn find_all<T: From<CreditFacility>>(
         &self,
         ids: &[CreditFacilityId],
@@ -535,11 +539,7 @@ where
         self.repo.find_all(ids).await
     }
 
-    #[instrument(
-        name = "core_credit.credit_facility.list_for_customer",
-        skip(self),
-        err
-    )]
+    #[instrument(name = "credit.credit_facility.list_for_customer", skip(self), err)]
     pub(super) async fn list_for_customer(
         &self,
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
@@ -565,7 +565,7 @@ where
             .await
     }
 
-    #[instrument(name = "core_credit.credit_facility.balance", skip(self), err)]
+    #[instrument(name = "credit.credit_facility.balance", skip(self), err)]
     pub async fn balance(
         &self,
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
