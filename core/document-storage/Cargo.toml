@@ -1,6 +1,6 @@
 [package]
 name = "document-storage"
-version = "0.3.740-dev"
+version = "0.3.741-dev"
 edition = "2021"
 license = "FSL-1.1-ALv2"
 
