@@ -1,14 +1,28 @@
 use chrono::{DateTime, Utc};
-#[cfg(feature = "json-schema")]
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::primitives::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[cfg_attr(feature = "json-schema", derive(JsonSchema))]
-pub struct ObligationDataForEntry {
-    pub id: Option<ObligationId>,
+pub enum RepaymentType {
+    Disbursal,
+    Interest,
+}
+
+impl From<&ObligationType> for RepaymentType {
+    fn from(value: &ObligationType) -> Self {
+        match value {
+            ObligationType::Disbursal => Self::Disbursal,
+            ObligationType::Interest => Self::Interest,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(tag = "type")]
+pub struct CreditFacilityRepaymentPlanEntry {
+    pub repayment_type: RepaymentType,
+    pub obligation_id: Option<ObligationId>,
     pub status: RepaymentStatus,
 
     pub initial: UsdCents,
@@ -22,14 +36,6 @@ pub struct ObligationDataForEntry {
     pub effective: chrono::NaiveDate,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[cfg_attr(feature = "json-schema", derive(JsonSchema))]
-#[serde(tag = "type")]
-pub enum CreditFacilityRepaymentPlanEntry {
-    Disbursal(ObligationDataForEntry),
-    Interest(ObligationDataForEntry),
-}
-
 impl PartialOrd for CreditFacilityRepaymentPlanEntry {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
@@ -38,32 +44,23 @@ impl PartialOrd for CreditFacilityRepaymentPlanEntry {
 
 impl Ord for CreditFacilityRepaymentPlanEntry {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let ord = {
-            let self_due_at = match self {
-                Self::Disbursal(o) | Self::Interest(o) => o.due_at,
-            };
-            let other_due_at = match other {
-                Self::Disbursal(o) | Self::Interest(o) => o.due_at,
-            };
-            self_due_at.cmp(&other_due_at)
-        };
-
-        ord.then_with(|| match (self, other) {
-            (
-                CreditFacilityRepaymentPlanEntry::Interest(_),
-                CreditFacilityRepaymentPlanEntry::Disbursal(_),
-            ) => std::cmp::Ordering::Less,
-            (
-                CreditFacilityRepaymentPlanEntry::Disbursal(_),
-                CreditFacilityRepaymentPlanEntry::Interest(_),
-            ) => std::cmp::Ordering::Greater,
-            _ => std::cmp::Ordering::Equal,
+        self.due_at.cmp(&other.due_at).then_with(|| {
+            match (self.repayment_type, other.repayment_type) {
+                (RepaymentType::Interest, RepaymentType::Disbursal) => std::cmp::Ordering::Less,
+                (RepaymentType::Disbursal, RepaymentType::Interest) => std::cmp::Ordering::Greater,
+                _ => std::cmp::Ordering::Equal,
+            }
         })
     }
 }
 
+impl CreditFacilityRepaymentPlanEntry {
+    pub fn is_not_upcoming(&self) -> bool {
+        self.status != RepaymentStatus::Upcoming
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-schema", derive(JsonSchema))]
 pub enum RepaymentStatus {
     Upcoming,
     NotYetDue,
