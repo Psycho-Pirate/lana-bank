@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use audit::AuditInfo;
 use es_entity::*;
 
+use core_money::Satoshis;
+
 use crate::primitives::{CustodianId, WalletId};
 
 #[derive(EsEvent, Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +23,10 @@ pub enum WalletEvent {
         custodian_response: serde_json::Value,
         audit_info: AuditInfo,
     },
+    BalanceChanged {
+        new_balance: Satoshis,
+        audit_info: AuditInfo,
+    },
 }
 
 #[derive(EsEntity, Builder)]
@@ -28,6 +34,8 @@ pub enum WalletEvent {
 pub struct Wallet {
     pub id: WalletId,
     pub custodian_id: CustodianId,
+    #[builder(setter(into, strip_option), default)]
+    pub external_wallet_id: Option<String>,
 
     events: EntityEvents<WalletEvent>,
 }
@@ -45,10 +53,31 @@ impl Wallet {
             WalletEvent::ExternalWalletAttached { external_id: existing, .. } if existing == &external_id
         );
 
+        self.external_wallet_id = Some(external_id.clone());
+
         self.events.push(WalletEvent::ExternalWalletAttached {
             external_id,
             address,
             custodian_response,
+            audit_info: audit_info.clone(),
+        });
+
+        Idempotent::Executed(())
+    }
+
+    pub fn update_balance(
+        &mut self,
+        new_balance: Satoshis,
+        audit_info: &AuditInfo,
+    ) -> Idempotent<()> {
+        idempotency_guard!(
+            self.events.iter_all().rev(),
+            WalletEvent::BalanceChanged { new_balance: balance, .. } if *balance == new_balance ,
+            => WalletEvent::BalanceChanged { .. }
+        );
+
+        self.events.push(WalletEvent::BalanceChanged {
+            new_balance,
             audit_info: audit_info.clone(),
         });
 
@@ -67,11 +96,16 @@ impl TryFromEvents<WalletEvent> for Wallet {
     fn try_from_events(events: EntityEvents<WalletEvent>) -> Result<Self, EsEntityError> {
         let mut builder = WalletBuilder::default();
         for event in events.iter_all() {
-            if let WalletEvent::Initialized {
-                id, custodian_id, ..
-            } = event
-            {
-                builder = builder.id(*id).custodian_id(*custodian_id);
+            match event {
+                WalletEvent::Initialized {
+                    id, custodian_id, ..
+                } => {
+                    builder = builder.id(*id).custodian_id(*custodian_id);
+                }
+                WalletEvent::ExternalWalletAttached { external_id, .. } => {
+                    builder = builder.external_wallet_id(external_id.to_owned());
+                }
+                _ => {}
             }
         }
         builder.events(events).build()
@@ -84,6 +118,8 @@ pub struct NewWallet {
     pub(super) id: WalletId,
     #[builder(setter(into))]
     pub(super) custodian_id: CustodianId,
+    #[builder(setter(into, strip_option), default)]
+    pub(super) external_wallet_id: Option<String>,
     pub(super) audit_info: AuditInfo,
 }
 

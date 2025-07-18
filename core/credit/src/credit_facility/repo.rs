@@ -6,7 +6,7 @@ pub use es_entity::{ListDirection, Sort};
 use outbox::OutboxEventMarker;
 
 use crate::{
-    CoreCreditEvent,
+    event::CoreCreditEvent,
     interest_accrual_cycle::{error::InterestAccrualCycleError, *},
     primitives::*,
     publisher::*,
@@ -21,6 +21,7 @@ use super::{entity::*, error::CreditFacilityError};
     columns(
         customer_id(ty = "CustomerId", list_for, update(persist = false)),
         approval_process_id(ty = "ApprovalProcessId", list_by, update(persist = "false")),
+        collateral_id(ty = "CollateralId", update(persist = false)),
         collateralization_ratio(
             ty = "Option<Decimal>",
             list_by,
@@ -84,6 +85,23 @@ where
         self.publisher
             .publish_facility(db, entity, new_events)
             .await
+    }
+
+    pub async fn find_by_custody_wallet(
+        &self,
+        wallet_id: CustodyWalletId,
+    ) -> Result<CreditFacility, CreditFacilityError> {
+        es_query!(
+            "core",
+            self.pool(),
+            r#"
+                SELECT cf.id FROM core_credit_facilities cf
+                LEFT JOIN core_collaterals co ON cf.collateral_id = co.id
+                WHERE co.custody_wallet_id = $1"#,
+            wallet_id as CustodyWalletId
+        )
+        .fetch_one()
+        .await
     }
 }
 

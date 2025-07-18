@@ -8,6 +8,7 @@ mod event;
 mod primitives;
 mod publisher;
 pub mod wallet;
+mod webhook_notification_repo;
 
 use strum::IntoDiscriminant as _;
 use tracing::instrument;
@@ -19,9 +20,11 @@ pub use publisher::CustodyPublisher;
 
 use audit::AuditSvc;
 use authz::PermissionCheck;
+use core_money::Satoshis;
 
 pub use custodian::*;
 pub use wallet::*;
+use webhook_notification_repo::*;
 
 pub use config::*;
 use error::CoreCustodyError;
@@ -39,9 +42,11 @@ where
 {
     authz: Perms,
     custodians: CustodianRepo,
+    webhooks: WebhookNotificationRepo,
     config: CustodyConfig,
     wallets: WalletRepo<E>,
     pool: sqlx::PgPool,
+    outbox: Outbox<E>,
 }
 
 impl<Perms, E> CoreCustody<Perms, E>
@@ -60,9 +65,11 @@ where
         let custody = Self {
             authz: authz.clone(),
             custodians: CustodianRepo::new(pool),
+            webhooks: WebhookNotificationRepo::new(pool),
             config,
             wallets: WalletRepo::new(pool, &CustodyPublisher::new(outbox)),
             pool: pool.clone(),
+            outbox: outbox.clone(),
         };
 
         if let Some(deprecated_encryption_key) = custody.config.deprecated_encryption_key.as_ref() {
@@ -280,42 +287,35 @@ where
             .await?)
     }
 
-    pub async fn create_new_wallet_in_op(
+    #[instrument(name = "custody.create_wallet_in_op", skip(self, db), err)]
+    pub async fn create_wallet_in_op(
         &self,
         db: &mut DbOp<'_>,
-        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
+        audit_info: audit::AuditInfo,
         custodian_id: CustodianId,
     ) -> Result<Wallet, CoreCustodyError> {
-        let audit_info = self
-            .authz
-            .enforce_permission(
-                sub,
-                CoreCustodyObject::custodian(custodian_id),
-                CoreCustodyAction::CUSTODIAN_CREATE_WALLET,
-            )
-            .await?;
-
         let new_wallet = NewWallet::builder()
             .id(WalletId::new())
             .custodian_id(custodian_id)
-            .audit_info(audit_info)
+            .audit_info(audit_info.clone())
             .build()
             .expect("all fields for new wallet provided");
 
         let mut wallet = self.wallets.create_in_op(db, new_wallet).await?;
 
-        self.generate_wallet_address_in_op(db, sub, &mut wallet)
+        self.generate_wallet_address_in_op(db, audit_info, &mut wallet)
             .await?;
 
         Ok(wallet)
     }
 
+    #[instrument(name = "custody.handle_webhook", skip(self), err)]
     pub async fn handle_webhook(
         &self,
         provider: String,
-        uri: &http::Uri,
-        headers: &http::HeaderMap,
-        payload: serde_json::Value,
+        uri: http::Uri,
+        headers: http::HeaderMap,
+        payload: bytes::Bytes,
     ) -> Result<(), CoreCustodyError> {
         let custodian = self.custodians.find_by_provider(provider).await;
 
@@ -325,36 +325,78 @@ where
             Err(e) => return Err(e.into()),
         };
 
-        self.custodians
-            .persist_webhook_notification(custodian_id, uri, headers, &payload)
+        self.webhooks
+            .persist(custodian_id, &uri, &headers, &payload)
             .await?;
 
         if let Ok(custodian) = custodian {
-            custodian
+            if let Some(notification) = custodian
                 .custodian_client(self.config.encryption.key)
                 .await?
-                .process_webhook(payload)
-                .await?;
+                .process_webhook(&headers, payload)
+                .await?
+            {
+                match notification {
+                    CustodianNotification::WalletBalanceChanged {
+                        external_wallet_id,
+                        new_balance,
+                    } => {
+                        self.update_wallet_balance(external_wallet_id, new_balance)
+                            .await?;
+                    }
+                }
+            }
         }
 
         Ok(())
     }
 
-    async fn generate_wallet_address_in_op(
+    #[instrument(name = "custody.update_wallet_balance", skip(self), err)]
+    async fn update_wallet_balance(
         &self,
-        db: &mut DbOp<'_>,
-        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
-        wallet: &mut Wallet,
+        external_wallet_id: String,
+        new_balance: Satoshis,
     ) -> Result<(), CoreCustodyError> {
+        let mut db = self.wallets.begin_op().await?;
+
+        let mut wallet = self
+            .wallets
+            .find_by_external_wallet_id_in_tx(db.tx(), Some(external_wallet_id))
+            .await?;
+
         let audit_info = self
             .authz
-            .enforce_permission(
-                sub,
+            .audit()
+            .record_system_entry_in_tx(
+                db.tx(),
                 CoreCustodyObject::wallet(wallet.id),
-                CoreCustodyAction::WALLET_GENERATE_ADDRESS,
+                CoreCustodyAction::WALLET_UPDATE,
             )
             .await?;
 
+        if wallet
+            .update_balance(new_balance, &audit_info)
+            .did_execute()
+        {
+            self.wallets.update_in_op(&mut db, &mut wallet).await?;
+        }
+
+        db.commit().await?;
+
+        Ok(())
+    }
+
+    #[instrument(
+        name = "custody.generate_wallet_address_in_op",
+        skip(self, db, wallet),
+        err
+    )]
+    async fn generate_wallet_address_in_op(
+        &self,
+        db: &mut DbOp<'_>,
+        audit_info: audit::AuditInfo,
+        wallet: &mut Wallet,
+    ) -> Result<(), CoreCustodyError> {
         let custodian = self
             .custodians
             .find_by_id_in_tx(db.tx(), &wallet.custodian_id)
@@ -391,9 +433,11 @@ where
         Self {
             authz: self.authz.clone(),
             custodians: self.custodians.clone(),
+            webhooks: self.webhooks.clone(),
             wallets: self.wallets.clone(),
             pool: self.pool.clone(),
             config: self.config.clone(),
+            outbox: self.outbox.clone(),
         }
     }
 }

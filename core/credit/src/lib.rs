@@ -182,7 +182,7 @@ where
             governance,
         )
         .await;
-        let collaterals = Collaterals::new(pool, authz, &publisher);
+        let collaterals = Collaterals::new(pool, authz, &publisher, &ledger);
         let disbursals = Disbursals::new(pool, authz, &publisher, &obligations, governance).await;
         let payments = Payments::new(pool, authz, &obligations, &publisher);
         let history_repo = HistoryRepo::new(pool);
@@ -296,6 +296,16 @@ where
         )
         .await?;
 
+        jobs.add_initializer_and_spawn_unique(
+            wallet_collateral_sync::WalletCollateralSyncInit::new(
+                outbox,
+                &credit_facilities,
+                &collaterals,
+            ),
+            wallet_collateral_sync::WalletCollateralSyncJobConfig::<Perms, E>::new(),
+        )
+        .await?;
+
         Ok(Self {
             authz: authz.clone(),
             customer: customer.clone(),
@@ -401,11 +411,7 @@ where
             .await?
             .expect("audit info missing");
 
-        let customer = self
-            .customer
-            .find_by_id(sub, customer_id)
-            .await?
-            .ok_or(CoreCreditError::CustomerNotFound)?;
+        let customer = self.customer.find_by_id_without_audit(customer_id).await?;
 
         if self.config.customer_active_check_enabled && customer.status.is_inactive() {
             return Err(CoreCreditError::CustomerNotActive);
@@ -429,7 +435,7 @@ where
 
             let wallet = self
                 .custody
-                .create_new_wallet_in_op(&mut db, sub, custodian_id)
+                .create_wallet_in_op(&mut db, audit_info.clone(), custodian_id)
                 .await?;
 
             Some(wallet.id)
@@ -554,11 +560,7 @@ where
             .await?;
 
         let customer_id = facility.customer_id;
-        let customer = self
-            .customer
-            .find_by_id(sub, customer_id)
-            .await?
-            .ok_or(CoreCreditError::CustomerNotFound)?;
+        let customer = self.customer.find_by_id_without_audit(customer_id).await?;
         if self.config.customer_active_check_enabled && customer.status.is_inactive() {
             return Err(CoreCreditError::CustomerNotActive);
         }
@@ -682,7 +684,7 @@ where
 
         let collateral_update = if let Some(collateral_update) = self
             .collaterals
-            .record_manual_collateral_update_in_op(
+            .record_collateral_update_via_manual_input_in_op(
                 &mut db,
                 credit_facility.collateral_id,
                 updated_collateral,
@@ -810,7 +812,7 @@ where
 
             CompletionOutcome::Completed((facility, completion)) => {
                 self.collaterals
-                    .record_manual_collateral_update_in_op(
+                    .record_collateral_update_via_manual_input_in_op(
                         &mut db,
                         facility.collateral_id,
                         Satoshis::ZERO,
