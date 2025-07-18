@@ -9,11 +9,11 @@ CREATE TABLE core_withdrawal_events_rollup (
   approval_process_id UUID,
   approved BOOLEAN,
   deposit_account_id UUID,
-  ledger_tx_id UUID,
   reference VARCHAR,
 
   -- Collection rollups
   audit_entry_ids BIGINT[],
+  ledger_tx_ids UUID[],
 
   -- Toggle fields
   is_approval_process_concluded BOOLEAN DEFAULT false,
@@ -43,7 +43,7 @@ BEGIN
   END IF;
 
   -- Validate event type is known
-  IF event_type NOT IN ('initialized', 'approval_process_concluded', 'confirmed', 'cancelled') THEN
+  IF event_type NOT IN ('initialized', 'approval_process_concluded', 'confirmed', 'cancelled', 'reverted', 'initiated') THEN
     RAISE EXCEPTION 'Unknown event type: %', event_type;
   END IF;
 
@@ -68,7 +68,12 @@ BEGIN
     new_row.is_approval_process_concluded := false;
     new_row.is_cancelled := false;
     new_row.is_confirmed := false;
-    new_row.ledger_tx_id := (NEW.event ->> 'ledger_tx_id')::UUID;
+    new_row.ledger_tx_ids := CASE
+       WHEN NEW.event ? 'ledger_tx_ids' THEN
+         ARRAY(SELECT value::text::UUID FROM jsonb_array_elements_text(NEW.event -> 'ledger_tx_ids'))
+       ELSE ARRAY[]::UUID[]
+     END
+;
     new_row.reference := (NEW.event ->> 'reference');
   ELSE
     -- Default all fields to current values
@@ -80,7 +85,7 @@ BEGIN
     new_row.is_approval_process_concluded := current_row.is_approval_process_concluded;
     new_row.is_cancelled := current_row.is_cancelled;
     new_row.is_confirmed := current_row.is_confirmed;
-    new_row.ledger_tx_id := current_row.ledger_tx_id;
+    new_row.ledger_tx_ids := current_row.ledger_tx_ids;
     new_row.reference := current_row.reference;
   END IF;
 
@@ -100,11 +105,16 @@ BEGIN
     WHEN 'confirmed' THEN
       new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
       new_row.is_confirmed := true;
-      new_row.ledger_tx_id := (NEW.event ->> 'ledger_tx_id')::UUID;
+      new_row.ledger_tx_ids := array_append(COALESCE(current_row.ledger_tx_ids, ARRAY[]::UUID[]), (NEW.event ->> 'ledger_tx_id')::UUID);
     WHEN 'cancelled' THEN
       new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
       new_row.is_cancelled := true;
-      new_row.ledger_tx_id := (NEW.event ->> 'ledger_tx_id')::UUID;
+      new_row.ledger_tx_ids := array_append(COALESCE(current_row.ledger_tx_ids, ARRAY[]::UUID[]), (NEW.event ->> 'ledger_tx_id')::UUID);
+    WHEN 'reverted' THEN
+      new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
+      new_row.ledger_tx_ids := array_append(COALESCE(current_row.ledger_tx_ids, ARRAY[]::UUID[]), (NEW.event ->> 'ledger_tx_id')::UUID);
+    WHEN 'initiated' THEN
+      new_row.ledger_tx_ids := array_append(COALESCE(current_row.ledger_tx_ids, ARRAY[]::UUID[]), (NEW.event ->> 'ledger_tx_id')::UUID);
   END CASE;
 
   INSERT INTO core_withdrawal_events_rollup (
@@ -120,7 +130,7 @@ BEGIN
     is_approval_process_concluded,
     is_cancelled,
     is_confirmed,
-    ledger_tx_id,
+    ledger_tx_ids,
     reference
   )
   VALUES (
@@ -136,7 +146,7 @@ BEGIN
     new_row.is_approval_process_concluded,
     new_row.is_cancelled,
     new_row.is_confirmed,
-    new_row.ledger_tx_id,
+    new_row.ledger_tx_ids,
     new_row.reference
   )
   ON CONFLICT (id) DO UPDATE SET
@@ -150,7 +160,7 @@ BEGIN
     is_approval_process_concluded = EXCLUDED.is_approval_process_concluded,
     is_cancelled = EXCLUDED.is_cancelled,
     is_confirmed = EXCLUDED.is_confirmed,
-    ledger_tx_id = EXCLUDED.ledger_tx_id,
+    ledger_tx_ids = EXCLUDED.ledger_tx_ids,
     reference = EXCLUDED.reference;
 
   RETURN NEW;

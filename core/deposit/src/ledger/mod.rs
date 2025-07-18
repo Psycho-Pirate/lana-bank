@@ -16,7 +16,7 @@ use cala_ledger::{
 };
 
 use crate::{
-    DepositAccountBalance, LedgerOmnibusAccountIds,
+    DepositAccountBalance, LedgerOmnibusAccountIds, WithdrawalReversalData,
     chart_of_accounts_integration::ChartOfAccountsIntegrationConfig,
     primitives::{CalaAccountId, CalaAccountSetId, DepositAccountType, UsdCents},
 };
@@ -100,6 +100,7 @@ impl DepositLedger {
         templates::InitiateWithdraw::init(cala).await?;
         templates::CancelWithdraw::init(cala).await?;
         templates::ConfirmWithdraw::init(cala).await?;
+        templates::RevertWithdraw::init(cala).await?;
 
         let deposits_normal_balance_type = DebitOrCredit::Credit;
 
@@ -180,7 +181,6 @@ impl DepositLedger {
             | Err(cala_ledger::velocity::error::VelocityError::LimitAlreadyAddedToControl) => {}
             Err(e) => return Err(e.into()),
         }
-
         Ok(Self {
             cala: cala.clone(),
             journal_id,
@@ -412,6 +412,36 @@ impl DepositLedger {
             .await?;
 
         op.commit().await?;
+        Ok(())
+    }
+
+    pub async fn revert_withdrawal(
+        &self,
+        op: es_entity::DbOp<'_>,
+        reversal_data: WithdrawalReversalData,
+    ) -> Result<(), DepositLedgerError> {
+        let mut op = self.cala.ledger_operation_from_db_op(op);
+
+        let params = templates::RevertWithdrawParams {
+            journal_id: self.journal_id,
+            deposit_omnibus_account_id: self.deposit_omnibus_account_ids.account_id,
+            credit_account_id: reversal_data.credit_account_id.into(),
+            amount: reversal_data.amount.to_usd(),
+            currency: self.usd,
+            correlation_id: reversal_data.correlation_id,
+            external_id: reversal_data.external_id,
+        };
+
+        self.cala
+            .post_transaction_in_op(
+                &mut op,
+                reversal_data.ledger_tx_id,
+                templates::REVERT_WITHDRAW_CODE,
+                params,
+            )
+            .await?;
+        op.commit().await?;
+
         Ok(())
     }
 

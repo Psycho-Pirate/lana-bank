@@ -21,6 +21,7 @@ pub enum WithdrawalStatus {
     Confirmed,
     Denied,
     Cancelled,
+    Reverted,
 }
 
 #[derive(EsEvent, Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +31,7 @@ pub enum WithdrawalStatus {
 pub enum WithdrawalEvent {
     Initialized {
         id: WithdrawalId,
+        ledger_tx_id: CalaTransactionId,
         deposit_account_id: DepositAccountId,
         amount: UsdCents,
         reference: String,
@@ -49,6 +51,10 @@ pub enum WithdrawalEvent {
         ledger_tx_id: CalaTransactionId,
         audit_info: AuditInfo,
     },
+    Reverted {
+        ledger_tx_id: CalaTransactionId,
+        audit_info: AuditInfo,
+    },
 }
 
 #[derive(EsEntity, Builder)]
@@ -63,6 +69,15 @@ pub struct Withdrawal {
     pub cancelled_tx_id: Option<CalaTransactionId>,
 
     events: EntityEvents<WithdrawalEvent>,
+}
+
+#[derive(Debug)]
+pub struct WithdrawalReversalData {
+    pub ledger_tx_id: CalaTransactionId,
+    pub credit_account_id: DepositAccountId,
+    pub amount: UsdCents,
+    pub correlation_id: String,
+    pub external_id: String,
 }
 
 impl Withdrawal {
@@ -94,6 +109,40 @@ impl Withdrawal {
         });
 
         Ok(ledger_tx_id)
+    }
+
+    fn is_reverted(&self) -> bool {
+        self.events
+            .iter_all()
+            .any(|e| matches!(e, WithdrawalEvent::Reverted { .. }))
+    }
+
+    pub fn revert(
+        &mut self,
+        audit_info: AuditInfo,
+    ) -> Result<Idempotent<WithdrawalReversalData>, WithdrawalError> {
+        if self.is_reverted() || self.is_cancelled() {
+            return Ok(Idempotent::Ignored);
+        }
+
+        if !self.is_confirmed() {
+            return Err(WithdrawalError::NotConfirmed(self.id));
+        }
+
+        let ledger_tx_id = CalaTransactionId::new();
+
+        self.events.push(WithdrawalEvent::Reverted {
+            ledger_tx_id,
+            audit_info,
+        });
+
+        Ok(Idempotent::Executed(WithdrawalReversalData {
+            ledger_tx_id,
+            amount: self.amount,
+            credit_account_id: self.deposit_account_id,
+            correlation_id: self.id.to_string(),
+            external_id: format!("lana:withdraw:{}:reverted", self.id),
+        }))
     }
 
     pub fn cancel(&mut self, audit_info: AuditInfo) -> Result<CalaTransactionId, WithdrawalError> {
@@ -134,14 +183,17 @@ impl Withdrawal {
     fn is_cancelled(&self) -> bool {
         self.events
             .iter_all()
+            .rev()
             .any(|e| matches!(e, WithdrawalEvent::Cancelled { .. }))
     }
 
     pub fn status(&self) -> WithdrawalStatus {
-        if self.is_confirmed() {
-            WithdrawalStatus::Confirmed
+        if self.is_reverted() {
+            WithdrawalStatus::Reverted
         } else if self.is_cancelled() {
             WithdrawalStatus::Cancelled
+        } else if self.is_confirmed() {
+            WithdrawalStatus::Confirmed
         } else {
             match self.is_approved_or_denied() {
                 Some(true) => WithdrawalStatus::PendingConfirmation,
@@ -245,6 +297,7 @@ impl IntoEvents<WithdrawalEvent> for NewWithdrawal {
             [WithdrawalEvent::Initialized {
                 reference: self.reference(),
                 id: self.id,
+                ledger_tx_id: self.id.into(),
                 deposit_account_id: self.deposit_account_id,
                 amount: self.amount,
                 approval_process_id: self.approval_process_id,
@@ -312,5 +365,88 @@ mod test {
             .build();
 
         assert!(withdrawal.is_ok());
+    }
+
+    fn create_confirmed_withdrawal() -> Withdrawal {
+        let new_withdrawal = NewWithdrawal::builder()
+            .id(WithdrawalId::new())
+            .deposit_account_id(DepositAccountId::new())
+            .amount(UsdCents::ONE)
+            .reference(None)
+            .approval_process_id(ApprovalProcessId::new())
+            .audit_info(dummy_audit_info())
+            .build()
+            .unwrap();
+
+        let mut withdrawal = Withdrawal::try_from_events(new_withdrawal.into_events()).unwrap();
+        withdrawal
+            .approval_process_concluded(true, dummy_audit_info())
+            .unwrap();
+        withdrawal.confirm(dummy_audit_info()).unwrap();
+        withdrawal
+    }
+
+    #[test]
+    fn can_revert_confirmed_withdrawal() {
+        let mut withdrawal = create_confirmed_withdrawal();
+
+        let result = withdrawal.revert(dummy_audit_info());
+
+        assert!(result.is_ok());
+        assert!(withdrawal.is_reverted());
+        assert_eq!(withdrawal.status(), WithdrawalStatus::Reverted);
+    }
+
+    #[test]
+    fn cancelled_withdrawal_is_ignored_on_revert() {
+        let new_withdrawal = NewWithdrawal::builder()
+            .id(WithdrawalId::new())
+            .deposit_account_id(DepositAccountId::new())
+            .amount(UsdCents::ONE)
+            .reference(None)
+            .approval_process_id(ApprovalProcessId::new())
+            .audit_info(dummy_audit_info())
+            .build()
+            .unwrap();
+
+        let mut withdrawal = Withdrawal::try_from_events(new_withdrawal.into_events()).unwrap();
+        withdrawal
+            .approval_process_concluded(true, dummy_audit_info())
+            .unwrap();
+        withdrawal.cancel(dummy_audit_info()).unwrap();
+
+        let result = withdrawal.revert(dummy_audit_info()).unwrap();
+        assert!(result.was_ignored());
+    }
+
+    #[test]
+    fn reverted_withdrawal_is_ignored_on_revert() {
+        let mut withdrawal = create_confirmed_withdrawal();
+
+        let _ = withdrawal.revert(dummy_audit_info()).unwrap();
+        let result = withdrawal.revert(dummy_audit_info()).unwrap();
+        assert!(result.was_ignored());
+    }
+
+    #[test]
+    fn cannot_revert_unconfirmed_withdrawal() {
+        let new_withdrawal = NewWithdrawal::builder()
+            .id(WithdrawalId::new())
+            .deposit_account_id(DepositAccountId::new())
+            .amount(UsdCents::ONE)
+            .reference(None)
+            .approval_process_id(ApprovalProcessId::new())
+            .audit_info(dummy_audit_info())
+            .build()
+            .unwrap();
+
+        let mut withdrawal = Withdrawal::try_from_events(new_withdrawal.into_events()).unwrap();
+        withdrawal
+            .approval_process_concluded(true, dummy_audit_info())
+            .unwrap();
+
+        let result = withdrawal.revert(dummy_audit_info());
+
+        assert!(matches!(result, Err(WithdrawalError::NotConfirmed(_))));
     }
 }

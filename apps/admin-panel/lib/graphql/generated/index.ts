@@ -1349,6 +1349,7 @@ export type Mutation = {
   withdrawalCancel: WithdrawalCancelPayload;
   withdrawalConfirm: WithdrawalConfirmPayload;
   withdrawalInitiate: WithdrawalInitiatePayload;
+  withdrawalRevert: WithdrawalRevertPayload;
 };
 
 
@@ -1565,6 +1566,11 @@ export type MutationWithdrawalConfirmArgs = {
 
 export type MutationWithdrawalInitiateArgs = {
   input: WithdrawalInitiateInput;
+};
+
+
+export type MutationWithdrawalRevertArgs = {
+  input: WithdrawalRevertInput;
 };
 
 export type Outstanding = {
@@ -2404,12 +2410,22 @@ export type WithdrawalInitiatePayload = {
   withdrawal: Withdrawal;
 };
 
+export type WithdrawalRevertInput = {
+  withdrawalId: Scalars['UUID']['input'];
+};
+
+export type WithdrawalRevertPayload = {
+  __typename?: 'WithdrawalRevertPayload';
+  withdrawal: Withdrawal;
+};
+
 export enum WithdrawalStatus {
   Cancelled = 'CANCELLED',
   Confirmed = 'CONFIRMED',
   Denied = 'DENIED',
   PendingApproval = 'PENDING_APPROVAL',
-  PendingConfirmation = 'PENDING_CONFIRMATION'
+  PendingConfirmation = 'PENDING_CONFIRMATION',
+  Reverted = 'REVERTED'
 }
 
 export type ApprovalProcessFieldsFragment = { __typename?: 'ApprovalProcess', id: string, approvalProcessId: string, deniedReason?: string | null, approvalProcessType: ApprovalProcessType, createdAt: any, subjectCanSubmitDecision: boolean, status: ApprovalProcessStatus, rules: { __typename?: 'CommitteeThreshold', threshold: number, committee: { __typename?: 'Committee', name: string, currentMembers: Array<{ __typename?: 'User', id: string, email: string, role?: { __typename?: 'Role', id: string, roleId: string, name: string, createdAt: any, permissionSets: Array<{ __typename?: 'PermissionSet', id: string, permissionSetId: string, name: PermissionSetName }> } | null }> } } | { __typename?: 'SystemApproval', autoApprove: boolean }, voters: Array<{ __typename?: 'ApprovalProcessVoter', stillEligible: boolean, didVote: boolean, didApprove: boolean, didDeny: boolean, user: { __typename?: 'User', id: string, userId: string, email: string, role?: { __typename?: 'Role', id: string, roleId: string, name: string, createdAt: any, permissionSets: Array<{ __typename?: 'PermissionSet', id: string, permissionSetId: string, name: PermissionSetName }> } | null } }> };

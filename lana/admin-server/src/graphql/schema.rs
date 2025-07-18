@@ -1229,6 +1229,20 @@ impl Mutation {
         )
     }
 
+    pub async fn withdrawal_revert(
+        &self,
+        ctx: &Context<'_>,
+        input: WithdrawalRevertInput,
+    ) -> async_graphql::Result<WithdrawalRevertPayload> {
+        let (app, sub) = app_and_sub_from_ctx!(ctx);
+        exec_mutation!(
+            WithdrawalRevertPayload,
+            Withdrawal,
+            ctx,
+            app.deposits().revert_withdrawal(sub, input.withdrawal_id)
+        )
+    }
+
     async fn terms_template_create(
         &self,
         ctx: &Context<'_>,

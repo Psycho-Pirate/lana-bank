@@ -110,3 +110,9 @@ pub struct WithdrawalCancelInput {
     pub withdrawal_id: UUID,
 }
 crate::mutation_payload! { WithdrawalCancelPayload, withdrawal: Withdrawal }
+
+#[derive(InputObject)]
+pub struct WithdrawalRevertInput {
+    pub withdrawal_id: UUID,
+}
+crate::mutation_payload! { WithdrawalRevertPayload, withdrawal: Withdrawal }
