@@ -6,6 +6,7 @@ import { CustomerType, TermsTemplateCreateInput } from "../../lib/graphql/genera
 
 type Customer = {
   customerId: string
+  publicId: string
   depositAccount: {
     id: string
     depositAccountId: string
@@ -51,7 +52,9 @@ Cypress.Commands.add(
       })
       .then((response) => {
         if (response.body.errors) {
-          throw new Error(`GraphQL Error: ${JSON.stringify(response.body.errors)}`)
+          throw new Error(
+            `GraphQL Error: ${JSON.stringify(response.body.errors)} variables: ${JSON.stringify(variables)}`,
+          )
         }
         return response.body
       })
@@ -86,6 +89,7 @@ Cypress.Commands.add(
         customerCreate(input: $input) {
           customer {
             customerId
+            publicId
             depositAccount {
               id
               depositAccountId
@@ -98,6 +102,7 @@ Cypress.Commands.add(
       query Customer($id: UUID!) {
         customer(id: $id) {
           customerId
+          publicId
           applicantId
           level
           status
@@ -119,7 +124,7 @@ Cypress.Commands.add(
           .graphqlRequest<CustomerQueryResponse>(query, {
             id: customerId,
           })
-          .then((response) => response.data.customer)
+          .then((resp) => resp.data.customer)
       })
   },
 )

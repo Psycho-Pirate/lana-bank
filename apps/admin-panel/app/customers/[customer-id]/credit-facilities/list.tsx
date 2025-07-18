@@ -13,12 +13,12 @@ import DataTable, { Column } from "@/components/data-table"
 import { CollateralizationStateLabel } from "@/app/credit-facilities/label"
 
 type CreditFacility = NonNullable<
-  GetCustomerCreditFacilitiesQuery["customer"]
+  GetCustomerCreditFacilitiesQuery["customerByPublicId"]
 >["creditFacilities"][number]
 
 type CustomerCreditFacilitiesTableProps = {
   creditFacilities: NonNullable<
-    GetCustomerCreditFacilitiesQuery["customer"]
+    GetCustomerCreditFacilitiesQuery["customerByPublicId"]
   >["creditFacilities"]
 }
 
@@ -64,7 +64,7 @@ export const CustomerCreditFacilitiesTable: React.FC<
       <DataTable
         data={creditFacilities}
         columns={columns}
-        navigateTo={(facility) => `/credit-facilities/${facility.creditFacilityId}`}
+        navigateTo={(facility) => `/credit-facilities/${facility.publicId}`}
       />
     </CardWrapper>
   )

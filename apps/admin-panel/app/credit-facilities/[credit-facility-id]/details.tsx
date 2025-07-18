@@ -29,7 +29,7 @@ import Balance from "@/components/balance/balance"
 type CreditFacilityDetailsProps = {
   creditFacilityId: string
   creditFacilityDetails: NonNullable<
-    GetCreditFacilityLayoutDetailsQuery["creditFacility"]
+    GetCreditFacilityLayoutDetailsQuery["creditFacilityByPublicId"]
   >
 }
 
@@ -54,7 +54,7 @@ const CreditFacilityDetailsCard: React.FC<CreditFacilityDetailsProps> = ({
     {
       label: t("details.customer"),
       value: `${creditFacilityDetails.customer.email} (${removeUnderscore(creditFacilityDetails.customer.customerType)})`,
-      href: `/customers/${creditFacilityDetails.customer.customerId}`,
+      href: `/customers/${creditFacilityDetails.customer.publicId}`,
     },
     {
       label: t("details.collateralizationState"),
@@ -167,6 +167,7 @@ const CreditFacilityDetailsCard: React.FC<CreditFacilityDetailsProps> = ({
 
       <CreditFacilityCollateralUpdateDialog
         creditFacilityId={creditFacilityId}
+        publicId={creditFacilityDetails.publicId}
         openDialog={openCollateralUpdateDialog}
         setOpenDialog={setOpenCollateralUpdateDialog}
       />

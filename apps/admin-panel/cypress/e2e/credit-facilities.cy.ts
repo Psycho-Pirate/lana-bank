@@ -13,10 +13,11 @@ const Policy = "Policies.PolicyDetails"
 
 describe("credit facility", () => {
   let customerId: string
+  let customerPublicId: string
   const termsTemplateName: string = `Test Template ${Date.now()}`
 
   before(() => {
-    Cypress.env("creditFacilityId", null)
+    Cypress.env("creditFacilityPublicId", null)
     cy.createTermsTemplate({
       name: termsTemplateName,
       annualRate: "5.5",
@@ -50,6 +51,7 @@ describe("credit facility", () => {
     const testTelegramId = `t${Date.now()}`
     cy.createCustomer(testEmail, testTelegramId).then((customer) => {
       customerId = customer.customerId
+      customerPublicId = customer.publicId
       cy.log(`Created customer with ID: ${customerId}`)
     })
   })
@@ -122,7 +124,7 @@ describe("credit facility", () => {
   })
 
   it("should create a credit facility and verify initial state", () => {
-    cy.visit(`/customers/${customerId}`)
+    cy.visit(`/customers/${customerPublicId}`)
     cy.get('[data-testid="loading-skeleton"]').should("not.exist")
 
     cy.get('[data-testid="global-create-button"]').click()
@@ -141,13 +143,10 @@ describe("credit facility", () => {
     cy.takeScreenshot("4_submit_credit_facility_form")
 
     cy.url()
-      .should(
-        "match",
-        /\/credit-facilities\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-      )
+      .should("match", /\/credit-facilities\/\d+$/)
       .then((url) => {
-        const facilityId = url.split("/").pop()
-        Cypress.env("creditFacilityId", facilityId)
+        const publicId = url.split("/").pop() as string
+        Cypress.env("creditFacilityPublicId", publicId)
       })
 
     cy.contains(t(CF + ".collateralizationState.noCollateral")).should("be.visible")
@@ -162,10 +161,10 @@ describe("credit facility", () => {
   })
 
   it("should update collateral, approve and activate the credit facility", () => {
-    const creditFacilityId = Cypress.env("creditFacilityId")
-    expect(creditFacilityId).to.exist
+    const publicId = Cypress.env("creditFacilityPublicId")
+    expect(publicId).to.exist
 
-    cy.visit(`/credit-facilities/${creditFacilityId}`)
+    cy.visit(`/credit-facilities/${publicId}`)
     cy.contains("$5,000").should("be.visible")
     cy.takeScreenshot("6_visit_credit_facility_page")
 
@@ -221,10 +220,10 @@ describe("credit facility", () => {
   })
 
   it("should successfully initiate and confirm a disbursal", () => {
-    const creditFacilityId = Cypress.env("creditFacilityId")
-    expect(creditFacilityId).to.exist
+    const publicId = Cypress.env("creditFacilityPublicId")
+    expect(publicId).to.exist
 
-    cy.visit(`/credit-facilities/${creditFacilityId}`)
+    cy.visit(`/credit-facilities/${publicId}`)
     cy.contains("$5,000").should("be.visible")
     cy.takeScreenshot("11_visit_credit_facility_page_for_disbursal")
 
@@ -240,10 +239,7 @@ describe("credit facility", () => {
     cy.get('[data-testid="disbursal-submit-button"]').click()
     cy.takeScreenshot("14_submit_disbursal_request")
 
-    cy.url().should(
-      "match",
-      /\/disbursals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    )
+    cy.url().should("match", /\/disbursals\/\w+$/)
 
     cy.takeScreenshot("15_disbursal_page")
     cy.takeScreenshot("16_disbursal_success_message")

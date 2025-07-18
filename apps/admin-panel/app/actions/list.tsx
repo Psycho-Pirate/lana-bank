@@ -51,6 +51,7 @@ gql`
             }
             ... on CreditFacility {
               creditFacilityId
+              publicId
               customer {
                 email
               }
@@ -58,7 +59,9 @@ gql`
             ... on CreditFacilityDisbursal {
               id
               disbursalId
+              publicId
               creditFacility {
+                publicId
                 customer {
                   email
                 }
@@ -107,7 +110,7 @@ const List: React.FC<ListProps> = ({ dashboard = false }) => {
       data.approvalProcessType === ApprovalProcessType.CreditFacilityApproval &&
       data.target.__typename === "CreditFacility"
     ) {
-      return `/credit-facilities/${data.target.creditFacilityId}`
+      return `/credit-facilities/${data.target.publicId}`
     } else if (
       data.approvalProcessType === ApprovalProcessType.WithdrawalApproval &&
       data.target.__typename === "Withdrawal"
@@ -117,7 +120,7 @@ const List: React.FC<ListProps> = ({ dashboard = false }) => {
       data.approvalProcessType === ApprovalProcessType.DisbursalApproval &&
       data.target.__typename === "CreditFacilityDisbursal"
     ) {
-      return `/disbursals/${data.target.disbursalId}`
+      return `/disbursals/${data.target.publicId}`
     }
     return "#"
   }

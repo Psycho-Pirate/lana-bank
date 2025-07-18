@@ -20,7 +20,7 @@ import { WithdrawalStatusBadge } from "@/app/withdrawals/status-badge"
 import { DisbursalStatusBadge } from "@/app/disbursals/status-badge"
 
 type HistoryNode = NonNullable<
-  NonNullable<GetCustomerTransactionHistoryQuery["customer"]>["depositAccount"]
+  NonNullable<GetCustomerTransactionHistoryQuery["customerByPublicId"]>["depositAccount"]
 >["history"]["edges"][number]["node"]
 
 type CustomerTransactionsTableProps = {
@@ -115,7 +115,7 @@ export const CustomerTransactionsTable: React.FC<CustomerTransactionsTableProps>
       case "CancelledWithdrawalEntry":
         return `/withdrawals/${entry.withdrawal.withdrawalId}`
       case "DisbursalEntry":
-        return `/disbursals/${entry.disbursal.disbursalId}`
+        return `/disbursals/${entry.disbursal.publicId}`
       default:
         return null
     }

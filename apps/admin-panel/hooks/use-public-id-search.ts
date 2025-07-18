@@ -14,6 +14,7 @@ gql`
       ... on Customer {
         id
         customerId
+        publicId
         email
       }
       ... on DepositAccount {
@@ -21,8 +22,19 @@ gql`
         customer {
           id
           customerId
+          publicId
           email
         }
+      }
+      ... on CreditFacility {
+        id
+        publicId
+        facilityAmount
+      }
+      ... on CreditFacilityDisbursal {
+        id
+        amount
+        publicId
       }
     }
   }
