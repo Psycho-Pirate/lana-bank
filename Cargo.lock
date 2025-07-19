@@ -3082,6 +3082,7 @@ dependencies = [
  "gcp-bigquery-client",
  "gcp_auth",
  "governance",
+ "handlebars",
  "hex",
  "hmac",
  "job",
@@ -3092,6 +3093,7 @@ dependencies = [
  "public-id",
  "rand 0.9.1",
  "rbac-types",
+ "rendering",
  "reqwest",
  "rust_decimal",
  "rust_decimal_macros",
@@ -3150,6 +3152,7 @@ name = "lana-ids"
 version = "0.3.745-dev"
 dependencies = [
  "cala-ledger",
+ "document-storage",
  "es-entity",
  "governance",
  "job",

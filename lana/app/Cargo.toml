@@ -46,6 +46,7 @@ outbox = { path = "../../lib/outbox" }
 audit = { path = "../../lib/audit" }
 authz = { path = "../../lib/authz" }
 cloud-storage = { path = "../../lib/cloud-storage" }
+rendering = { path = "../../lib/rendering" }
 
 cala-ledger = { workspace = true }
 es-entity = { workspace = true, features = ["graphql"] }
@@ -58,6 +59,7 @@ chrono = { workspace = true }
 reqwest = { workspace = true }
 derive_builder = { workspace = true }
 futures = { workspace = true }
+handlebars = { workspace = true }
 thiserror = { workspace = true }
 sqlx = { workspace = true }
 strum = { workspace = true }
