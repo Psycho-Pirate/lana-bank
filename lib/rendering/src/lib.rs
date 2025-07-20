@@ -25,6 +25,7 @@ impl Renderer {
     }
 
     /// Render a handlebars template and convert to PDF
+    #[tracing::instrument(name = "rendering.render_template_to_pdf", skip_all, err)]
     pub fn render_template_to_pdf<T: serde::Serialize>(
         &self,
         template_content: &str,
