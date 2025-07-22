@@ -25,7 +25,7 @@ impl Default for JobsConfig {
 }
 
 fn default_job_lost_interval() -> Duration {
-    Duration::from_secs(60)
+    Duration::from_secs(60 * 5)
 }
 
 fn default_max_jobs_per_process() -> usize {
