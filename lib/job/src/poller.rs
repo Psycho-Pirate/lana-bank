@@ -58,22 +58,22 @@ impl JobPoller {
         _lost_task: OwnedTaskHandle,
     ) {
         let mut failures = 0;
+        let mut woken_up = false;
         loop {
-            let mut timeout = MAX_WAIT;
-            if let Some(batch_size) = self.tracker.next_batch_size() {
-                match self.poll_and_dispatch(batch_size).await {
-                    Ok(duration) => {
-                        timeout = duration;
-                        failures = 0;
-                    }
-                    Err(e) => {
-                        failures += 1;
-                        eprintln!("job.main_loop errored {e} ({failures})");
-                        timeout = Duration::from_millis(50 << failures);
-                    }
+            let timeout = match self.poll_and_dispatch(woken_up).await {
+                Ok(duration) => {
+                    failures = 0;
+                    duration
+                }
+                Err(e) => {
+                    failures += 1;
+                    eprintln!("job.main_loop errored {e} ({failures})");
+                    Duration::from_millis(50 << failures)
                 }
             };
-            let _ = crate::time::timeout(timeout, self.tracker.notified()).await;
+            woken_up = crate::time::timeout(timeout, self.tracker.notified())
+                .await
+                .is_ok();
         }
     }
 
@@ -81,17 +81,20 @@ impl JobPoller {
         name = "job.poll_and_dispatch",
         skip(self),
         fields(n_jobs_running, n_jobs_to_start, now, next_poll_in),
+        ret,
         err
     )]
-    async fn poll_and_dispatch(
-        self: &Arc<Self>,
-        n_jobs_to_poll: usize,
-    ) -> Result<Duration, JobError> {
+    async fn poll_and_dispatch(self: &Arc<Self>, woken_up: bool) -> Result<Duration, JobError> {
         let span = Span::current();
-        self.tracker.trace_n_jobs_running();
+        let Some(n_jobs_to_poll) = self.tracker.next_batch_size() else {
+            span.record("next_poll_in", tracing::field::debug(MAX_WAIT));
+            span.record("n_jobs_to_start", 0);
+            return Ok(MAX_WAIT);
+        };
         let rows = match poll_jobs(self.repo.pool(), n_jobs_to_poll).await? {
             JobPollResult::WaitTillNextJob(duration) => {
                 span.record("next_poll_in", tracing::field::debug(duration));
+                span.record("n_jobs_to_start", 0);
                 return Ok(duration);
             }
             JobPollResult::Jobs(jobs) => jobs,
@@ -158,7 +161,7 @@ impl JobPoller {
 
     #[instrument(
         name = "job.dispatch_job",
-        skip(self),
+        skip(self, polled_job),
         fields(job_id, job_type, attempt, now),
         err
     )]
