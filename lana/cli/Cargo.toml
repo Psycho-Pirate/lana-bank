@@ -1,6 +1,6 @@
 [package]
 name = "lana-cli"
-version = "0.3.762-dev"
+version = "0.3.763-dev"
 license = "FSL-1.1-ALv2"
 edition = "2024"
 build = "build.rs"
