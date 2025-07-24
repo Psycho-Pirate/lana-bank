@@ -963,6 +963,7 @@ export type Deposit = {
   depositId: Scalars['UUID']['output'];
   id: Scalars['ID']['output'];
   reference: Scalars['String']['output'];
+  status: DepositStatus;
 };
 
 export type DepositAccount = {
@@ -1083,6 +1084,11 @@ export type DepositRevertPayload = {
   __typename?: 'DepositRevertPayload';
   deposit: Deposit;
 };
+
+export enum DepositStatus {
+  Confirmed = 'CONFIRMED',
+  Reverted = 'REVERTED'
+}
 
 export type DisbursalEntry = {
   __typename?: 'DisbursalEntry';
@@ -2755,7 +2761,7 @@ export type GetCustomerTransactionHistoryQueryVariables = Exact<{
 }>;
 
 
-export type GetCustomerTransactionHistoryQuery = { __typename?: 'Query', customerByPublicId?: { __typename?: 'Customer', id: string, customerId: string, customerType: CustomerType, depositAccount?: { __typename?: 'DepositAccount', depositAccountId: string, history: { __typename?: 'DepositAccountHistoryEntryConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null, hasPreviousPage: boolean, startCursor?: string | null }, edges: Array<{ __typename?: 'DepositAccountHistoryEntryEdge', cursor: string, node: { __typename?: 'CancelledWithdrawalEntry', recordedAt: any, withdrawal: { __typename?: 'Withdrawal', id: string, withdrawalId: string, accountId: string, amount: UsdCents, createdAt: any, reference: string, status: WithdrawalStatus } } | { __typename?: 'DepositEntry', recordedAt: any, deposit: { __typename?: 'Deposit', id: string, depositId: string, accountId: string, amount: UsdCents, createdAt: any, reference: string } } | { __typename?: 'DisbursalEntry', recordedAt: any, disbursal: { __typename?: 'CreditFacilityDisbursal', id: string, disbursalId: string, publicId: any, amount: UsdCents, createdAt: any, status: DisbursalStatus } } | { __typename?: 'PaymentEntry', recordedAt: any, payment: { __typename?: 'CreditFacilityPaymentAllocation', id: string, paymentAllocationId: string, amount: UsdCents, createdAt: any } } | { __typename?: 'UnknownEntry' } | { __typename?: 'WithdrawalEntry', recordedAt: any, withdrawal: { __typename?: 'Withdrawal', id: string, withdrawalId: string, accountId: string, amount: UsdCents, createdAt: any, reference: string, status: WithdrawalStatus } } }> } } | null } | null };
+export type GetCustomerTransactionHistoryQuery = { __typename?: 'Query', customerByPublicId?: { __typename?: 'Customer', id: string, customerId: string, customerType: CustomerType, depositAccount?: { __typename?: 'DepositAccount', depositAccountId: string, history: { __typename?: 'DepositAccountHistoryEntryConnection', pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, endCursor?: string | null, hasPreviousPage: boolean, startCursor?: string | null }, edges: Array<{ __typename?: 'DepositAccountHistoryEntryEdge', cursor: string, node: { __typename?: 'CancelledWithdrawalEntry', recordedAt: any, withdrawal: { __typename?: 'Withdrawal', id: string, withdrawalId: string, accountId: string, amount: UsdCents, createdAt: any, reference: string, status: WithdrawalStatus } } | { __typename?: 'DepositEntry', recordedAt: any, deposit: { __typename?: 'Deposit', id: string, depositId: string, accountId: string, amount: UsdCents, createdAt: any, reference: string, status: DepositStatus } } | { __typename?: 'DisbursalEntry', recordedAt: any, disbursal: { __typename?: 'CreditFacilityDisbursal', id: string, disbursalId: string, publicId: any, amount: UsdCents, createdAt: any, status: DisbursalStatus } } | { __typename?: 'PaymentEntry', recordedAt: any, payment: { __typename?: 'CreditFacilityPaymentAllocation', id: string, paymentAllocationId: string, amount: UsdCents, createdAt: any } } | { __typename?: 'UnknownEntry' } | { __typename?: 'WithdrawalEntry', recordedAt: any, withdrawal: { __typename?: 'Withdrawal', id: string, withdrawalId: string, accountId: string, amount: UsdCents, createdAt: any, reference: string, status: WithdrawalStatus } } }> } } | null } | null };
 
 export type CustomerEmailUpdateMutationVariables = Exact<{
   input: CustomerEmailUpdateInput;
@@ -2793,14 +2799,30 @@ export type DashboardQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type DashboardQuery = { __typename?: 'Query', dashboard: { __typename?: 'Dashboard', activeFacilities: number, pendingFacilities: number, totalDisbursed: UsdCents, totalCollateral: Satoshis } };
 
+export type DepositDetailsPageFragmentFragment = { __typename?: 'Deposit', id: string, depositId: string, amount: UsdCents, createdAt: any, reference: string, status: DepositStatus, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', id: string, customerId: string, publicId: any, applicantId?: string | null, email: string, depositAccount?: { __typename?: 'DepositAccount', balance: { __typename?: 'DepositAccountBalance', settled: UsdCents, pending: UsdCents } } | null } } };
+
+export type GetDepositDetailsQueryVariables = Exact<{
+  id: Scalars['UUID']['input'];
+}>;
+
+
+export type GetDepositDetailsQuery = { __typename?: 'Query', deposit?: { __typename?: 'Deposit', id: string, depositId: string, amount: UsdCents, createdAt: any, reference: string, status: DepositStatus, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', id: string, customerId: string, publicId: any, applicantId?: string | null, email: string, depositAccount?: { __typename?: 'DepositAccount', balance: { __typename?: 'DepositAccountBalance', settled: UsdCents, pending: UsdCents } } | null } } } | null };
+
+export type DepositRevertMutationVariables = Exact<{
+  input: DepositRevertInput;
+}>;
+
+
+export type DepositRevertMutation = { __typename?: 'Mutation', depositRevert: { __typename?: 'DepositRevertPayload', deposit: { __typename?: 'Deposit', id: string, depositId: string, amount: UsdCents, createdAt: any, reference: string, status: DepositStatus, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', id: string, customerId: string, publicId: any, applicantId?: string | null, email: string, depositAccount?: { __typename?: 'DepositAccount', balance: { __typename?: 'DepositAccountBalance', settled: UsdCents, pending: UsdCents } } | null } } } } };
+
 export type CreateDepositMutationVariables = Exact<{
   input: DepositRecordInput;
 }>;
 
 
-export type CreateDepositMutation = { __typename?: 'Mutation', depositRecord: { __typename?: 'DepositRecordPayload', deposit: { __typename?: 'Deposit', id: string, createdAt: any, depositId: string, reference: string, amount: UsdCents, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', id: string, customerId: string, depositAccount?: { __typename?: 'DepositAccount', id: string, deposits: Array<{ __typename?: 'Deposit', id: string, createdAt: any, depositId: string, reference: string, amount: UsdCents }>, balance: { __typename?: 'DepositAccountBalance', settled: UsdCents, pending: UsdCents } } | null } } } } };
+export type CreateDepositMutation = { __typename?: 'Mutation', depositRecord: { __typename?: 'DepositRecordPayload', deposit: { __typename?: 'Deposit', id: string, depositId: string, reference: string, createdAt: any, amount: UsdCents, status: DepositStatus, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', id: string, customerId: string, email: string, depositAccount?: { __typename?: 'DepositAccount', id: string, deposits: Array<{ __typename?: 'Deposit', id: string, depositId: string, reference: string, createdAt: any, amount: UsdCents, status: DepositStatus, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', customerId: string, email: string } } }>, balance: { __typename?: 'DepositAccountBalance', settled: UsdCents, pending: UsdCents } } | null } } } } };
 
-export type DepositFieldsFragment = { __typename?: 'Deposit', id: string, createdAt: any, depositId: string, reference: string, amount: UsdCents };
+export type DepositFieldsFragment = { __typename?: 'Deposit', id: string, depositId: string, reference: string, createdAt: any, amount: UsdCents, status: DepositStatus, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', customerId: string, email: string } } };
 
 export type DepositsQueryVariables = Exact<{
   first: Scalars['Int']['input'];
@@ -2808,7 +2830,7 @@ export type DepositsQueryVariables = Exact<{
 }>;
 
 
-export type DepositsQuery = { __typename?: 'Query', deposits: { __typename?: 'DepositConnection', pageInfo: { __typename?: 'PageInfo', hasPreviousPage: boolean, hasNextPage: boolean, startCursor?: string | null, endCursor?: string | null }, edges: Array<{ __typename?: 'DepositEdge', cursor: string, node: { __typename?: 'Deposit', id: string, createdAt: any, depositId: string, reference: string, amount: UsdCents, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', email: string } } } }> } };
+export type DepositsQuery = { __typename?: 'Query', deposits: { __typename?: 'DepositConnection', pageInfo: { __typename?: 'PageInfo', hasPreviousPage: boolean, hasNextPage: boolean, startCursor?: string | null, endCursor?: string | null }, edges: Array<{ __typename?: 'DepositEdge', cursor: string, node: { __typename?: 'Deposit', id: string, depositId: string, reference: string, createdAt: any, amount: UsdCents, status: DepositStatus, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', customerId: string, email: string } } } }> } };
 
 export type GetDisbursalDetailsQueryVariables = Exact<{
   publicId: Scalars['PublicId']['input'];
@@ -3166,6 +3188,13 @@ export type GetWithdrawalDetailsQueryVariables = Exact<{
 
 
 export type GetWithdrawalDetailsQuery = { __typename?: 'Query', withdrawal?: { __typename?: 'Withdrawal', id: string, withdrawalId: string, amount: UsdCents, status: WithdrawalStatus, reference: string, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', id: string, customerId: string, publicId: any, applicantId?: string | null, email: string, depositAccount?: { __typename?: 'DepositAccount', balance: { __typename?: 'DepositAccountBalance', settled: UsdCents, pending: UsdCents } } | null } }, approvalProcess: { __typename?: 'ApprovalProcess', id: string, approvalProcessId: string, deniedReason?: string | null, approvalProcessType: ApprovalProcessType, createdAt: any, subjectCanSubmitDecision: boolean, status: ApprovalProcessStatus, rules: { __typename?: 'CommitteeThreshold', threshold: number, committee: { __typename?: 'Committee', name: string, currentMembers: Array<{ __typename?: 'User', id: string, email: string, role?: { __typename?: 'Role', id: string, roleId: string, name: string, createdAt: any, permissionSets: Array<{ __typename?: 'PermissionSet', id: string, permissionSetId: string, name: PermissionSetName }> } | null }> } } | { __typename?: 'SystemApproval', autoApprove: boolean }, voters: Array<{ __typename?: 'ApprovalProcessVoter', stillEligible: boolean, didVote: boolean, didApprove: boolean, didDeny: boolean, user: { __typename?: 'User', id: string, userId: string, email: string, role?: { __typename?: 'Role', id: string, roleId: string, name: string, createdAt: any, permissionSets: Array<{ __typename?: 'PermissionSet', id: string, permissionSetId: string, name: PermissionSetName }> } | null } }> } } | null };
+
+export type WithdrawalRevertMutationVariables = Exact<{
+  input: WithdrawalRevertInput;
+}>;
+
+
+export type WithdrawalRevertMutation = { __typename?: 'Mutation', withdrawalRevert: { __typename?: 'WithdrawalRevertPayload', withdrawal: { __typename?: 'Withdrawal', id: string, withdrawalId: string, amount: UsdCents, status: WithdrawalStatus, reference: string, account: { __typename?: 'DepositAccount', customer: { __typename?: 'Customer', id: string, customerId: string, publicId: any, applicantId?: string | null, email: string, depositAccount?: { __typename?: 'DepositAccount', balance: { __typename?: 'DepositAccountBalance', settled: UsdCents, pending: UsdCents } } | null } }, approvalProcess: { __typename?: 'ApprovalProcess', id: string, approvalProcessId: string, deniedReason?: string | null, approvalProcessType: ApprovalProcessType, createdAt: any, subjectCanSubmitDecision: boolean, status: ApprovalProcessStatus, rules: { __typename?: 'CommitteeThreshold', threshold: number, committee: { __typename?: 'Committee', name: string, currentMembers: Array<{ __typename?: 'User', id: string, email: string, role?: { __typename?: 'Role', id: string, roleId: string, name: string, createdAt: any, permissionSets: Array<{ __typename?: 'PermissionSet', id: string, permissionSetId: string, name: PermissionSetName }> } | null }> } } | { __typename?: 'SystemApproval', autoApprove: boolean }, voters: Array<{ __typename?: 'ApprovalProcessVoter', stillEligible: boolean, didVote: boolean, didApprove: boolean, didDeny: boolean, user: { __typename?: 'User', id: string, userId: string, email: string, role?: { __typename?: 'Role', id: string, roleId: string, name: string, createdAt: any, permissionSets: Array<{ __typename?: 'PermissionSet', id: string, permissionSetId: string, name: PermissionSetName }> } | null } }> } } } };
 
 export type WithdrawalInitiateMutationVariables = Exact<{
   input: WithdrawalInitiateInput;
@@ -3568,13 +3597,45 @@ export const CustodianFieldsFragmentDoc = gql`
   name
 }
     `;
+export const DepositDetailsPageFragmentFragmentDoc = gql`
+    fragment DepositDetailsPageFragment on Deposit {
+  id
+  depositId
+  amount
+  createdAt
+  reference
+  status
+  account {
+    customer {
+      id
+      customerId
+      publicId
+      applicantId
+      email
+      depositAccount {
+        balance {
+          settled
+          pending
+        }
+      }
+    }
+  }
+}
+    `;
 export const DepositFieldsFragmentDoc = gql`
     fragment DepositFields on Deposit {
   id
-  createdAt
   depositId
   reference
+  createdAt
   amount
+  status
+  account {
+    customer {
+      customerId
+      email
+    }
+  }
 }
     `;
 export const LedgerAccountDetailsFragmentDoc = gql`
@@ -5196,6 +5257,7 @@ export const GetCustomerTransactionHistoryDocument = gql`
                 amount
                 createdAt
                 reference
+                status
               }
             }
             ... on WithdrawalEntry {
@@ -5506,6 +5568,81 @@ export type DashboardQueryHookResult = ReturnType<typeof useDashboardQuery>;
 export type DashboardLazyQueryHookResult = ReturnType<typeof useDashboardLazyQuery>;
 export type DashboardSuspenseQueryHookResult = ReturnType<typeof useDashboardSuspenseQuery>;
 export type DashboardQueryResult = Apollo.QueryResult<DashboardQuery, DashboardQueryVariables>;
+export const GetDepositDetailsDocument = gql`
+    query GetDepositDetails($id: UUID!) {
+  deposit(id: $id) {
+    ...DepositDetailsPageFragment
+  }
+}
+    ${DepositDetailsPageFragmentFragmentDoc}`;
+
+/**
+ * __useGetDepositDetailsQuery__
+ *
+ * To run a query within a React component, call `useGetDepositDetailsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetDepositDetailsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetDepositDetailsQuery({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useGetDepositDetailsQuery(baseOptions: Apollo.QueryHookOptions<GetDepositDetailsQuery, GetDepositDetailsQueryVariables> & ({ variables: GetDepositDetailsQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetDepositDetailsQuery, GetDepositDetailsQueryVariables>(GetDepositDetailsDocument, options);
+      }
+export function useGetDepositDetailsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetDepositDetailsQuery, GetDepositDetailsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetDepositDetailsQuery, GetDepositDetailsQueryVariables>(GetDepositDetailsDocument, options);
+        }
+export function useGetDepositDetailsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDepositDetailsQuery, GetDepositDetailsQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetDepositDetailsQuery, GetDepositDetailsQueryVariables>(GetDepositDetailsDocument, options);
+        }
+export type GetDepositDetailsQueryHookResult = ReturnType<typeof useGetDepositDetailsQuery>;
+export type GetDepositDetailsLazyQueryHookResult = ReturnType<typeof useGetDepositDetailsLazyQuery>;
+export type GetDepositDetailsSuspenseQueryHookResult = ReturnType<typeof useGetDepositDetailsSuspenseQuery>;
+export type GetDepositDetailsQueryResult = Apollo.QueryResult<GetDepositDetailsQuery, GetDepositDetailsQueryVariables>;
+export const DepositRevertDocument = gql`
+    mutation DepositRevert($input: DepositRevertInput!) {
+  depositRevert(input: $input) {
+    deposit {
+      ...DepositDetailsPageFragment
+    }
+  }
+}
+    ${DepositDetailsPageFragmentFragmentDoc}`;
+export type DepositRevertMutationFn = Apollo.MutationFunction<DepositRevertMutation, DepositRevertMutationVariables>;
+
+/**
+ * __useDepositRevertMutation__
+ *
+ * To run a mutation, you first call `useDepositRevertMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDepositRevertMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [depositRevertMutation, { data, loading, error }] = useDepositRevertMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useDepositRevertMutation(baseOptions?: Apollo.MutationHookOptions<DepositRevertMutation, DepositRevertMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<DepositRevertMutation, DepositRevertMutationVariables>(DepositRevertDocument, options);
+      }
+export type DepositRevertMutationHookResult = ReturnType<typeof useDepositRevertMutation>;
+export type DepositRevertMutationResult = Apollo.MutationResult<DepositRevertMutation>;
+export type DepositRevertMutationOptions = Apollo.BaseMutationOptions<DepositRevertMutation, DepositRevertMutationVariables>;
 export const CreateDepositDocument = gql`
     mutation CreateDeposit($input: DepositRecordInput!) {
   depositRecord(input: $input) {
@@ -5573,11 +5710,6 @@ export const DepositsDocument = gql`
       cursor
       node {
         ...DepositFields
-        account {
-          customer {
-            email
-          }
-        }
       }
     }
   }
@@ -7868,6 +8000,41 @@ export type GetWithdrawalDetailsQueryHookResult = ReturnType<typeof useGetWithdr
 export type GetWithdrawalDetailsLazyQueryHookResult = ReturnType<typeof useGetWithdrawalDetailsLazyQuery>;
 export type GetWithdrawalDetailsSuspenseQueryHookResult = ReturnType<typeof useGetWithdrawalDetailsSuspenseQuery>;
 export type GetWithdrawalDetailsQueryResult = Apollo.QueryResult<GetWithdrawalDetailsQuery, GetWithdrawalDetailsQueryVariables>;
+export const WithdrawalRevertDocument = gql`
+    mutation WithdrawalRevert($input: WithdrawalRevertInput!) {
+  withdrawalRevert(input: $input) {
+    withdrawal {
+      ...WithdrawDetailsPageFragment
+    }
+  }
+}
+    ${WithdrawDetailsPageFragmentFragmentDoc}`;
+export type WithdrawalRevertMutationFn = Apollo.MutationFunction<WithdrawalRevertMutation, WithdrawalRevertMutationVariables>;
+
+/**
+ * __useWithdrawalRevertMutation__
+ *
+ * To run a mutation, you first call `useWithdrawalRevertMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useWithdrawalRevertMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [withdrawalRevertMutation, { data, loading, error }] = useWithdrawalRevertMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useWithdrawalRevertMutation(baseOptions?: Apollo.MutationHookOptions<WithdrawalRevertMutation, WithdrawalRevertMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<WithdrawalRevertMutation, WithdrawalRevertMutationVariables>(WithdrawalRevertDocument, options);
+      }
+export type WithdrawalRevertMutationHookResult = ReturnType<typeof useWithdrawalRevertMutation>;
+export type WithdrawalRevertMutationResult = Apollo.MutationResult<WithdrawalRevertMutation>;
+export type WithdrawalRevertMutationOptions = Apollo.BaseMutationOptions<WithdrawalRevertMutation, WithdrawalRevertMutationVariables>;
 export const WithdrawalInitiateDocument = gql`
     mutation WithdrawalInitiate($input: WithdrawalInitiateInput!) {
   withdrawalInitiate(input: $input) {
