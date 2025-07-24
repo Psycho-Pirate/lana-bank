@@ -26,7 +26,7 @@ pub use custodian::*;
 pub use wallet::*;
 use webhook_notification_repo::*;
 
-pub use config::*;
+pub use config::CustodyConfig;
 use error::CoreCustodyError;
 pub use primitives::*;
 
@@ -114,7 +114,7 @@ where
         &self,
         db: &mut DbOp<'_>,
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
-        name: impl AsRef<str> + std::fmt::Debug,
+        custodian_name: impl AsRef<str> + std::fmt::Debug,
         custodian_config: CustodianConfig,
     ) -> Result<Custodian, CoreCustodyError> {
         let audit_info = self
@@ -138,7 +138,7 @@ where
 
         let new_custodian = NewCustodian::builder()
             .id(custodian_id)
-            .name(name.as_ref().to_owned())
+            .name(custodian_name.as_ref().to_owned())
             .provider(custodian_config.discriminant().to_string())
             .encrypted_custodian_config(custodian_config, &self.config.encryption.key)
             .audit_info(audit_info.clone())
@@ -158,13 +158,13 @@ where
     pub async fn create_custodian(
         &self,
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
-        name: impl AsRef<str> + std::fmt::Debug,
+        custodian_name: impl AsRef<str> + std::fmt::Debug,
         custodian_config: CustodianConfig,
     ) -> Result<Custodian, CoreCustodyError> {
         let mut db = self.custodians.begin_op().await?;
 
         let custodian = self
-            .create_custodian_in_op(&mut db, sub, name, custodian_config)
+            .create_custodian_in_op(&mut db, sub, custodian_name, custodian_config)
             .await?;
 
         db.commit().await?;
@@ -293,6 +293,7 @@ where
         db: &mut DbOp<'_>,
         audit_info: audit::AuditInfo,
         custodian_id: CustodianId,
+        wallet_label: &str,
     ) -> Result<Wallet, CoreCustodyError> {
         let new_wallet = NewWallet::builder()
             .id(WalletId::new())
@@ -303,7 +304,7 @@ where
 
         let mut wallet = self.wallets.create_in_op(db, new_wallet).await?;
 
-        self.generate_wallet_address_in_op(db, audit_info, &mut wallet)
+        self.generate_wallet_address_in_op(db, audit_info, &mut wallet, wallet_label)
             .await?;
 
         Ok(wallet)
@@ -331,7 +332,7 @@ where
 
         if let Ok(custodian) = custodian {
             if let Some(notification) = custodian
-                .custodian_client(self.config.encryption.key)
+                .custodian_client(self.config.encryption.key, &self.config.custody_providers)
                 .await?
                 .process_webhook(&headers, payload)
                 .await?
@@ -396,6 +397,7 @@ where
         db: &mut DbOp<'_>,
         audit_info: audit::AuditInfo,
         wallet: &mut Wallet,
+        label: &str,
     ) -> Result<(), CoreCustodyError> {
         let custodian = self
             .custodians
@@ -403,10 +405,10 @@ where
             .await?;
 
         let client = custodian
-            .custodian_client(self.config.encryption.key)
+            .custodian_client(self.config.encryption.key, &self.config.custody_providers)
             .await?;
 
-        let external_wallet = client.initialize_wallet("label").await?;
+        let external_wallet = client.initialize_wallet(label).await?;
 
         if wallet
             .attach_external_wallet(
