@@ -25,36 +25,19 @@ import { Loader2, FileDown, FileUp, CheckCircle, Clock } from "lucide-react"
 import { formatDate } from "@lana/web/utils"
 
 import {
-  useAccountingCsvsForLedgerAccountIdQuery,
+  useAccountEntryCsvQuery,
   useLedgerAccountCsvCreateMutation,
   useAccountingCsvDownloadLinkGenerateMutation,
   DocumentStatus,
 } from "@/lib/graphql/generated"
 
 gql`
-  query AccountingCsvsForLedgerAccountId(
-    $ledgerAccountId: UUID!
-    $first: Int!
-    $after: String
-  ) {
-    accountingCsvsForLedgerAccountId(
-      ledgerAccountId: $ledgerAccountId
-      first: $first
-      after: $after
-    ) {
-      edges {
-        node {
-          id
-          documentId
-          status
-          createdAt
-        }
-        cursor
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+  query AccountEntryCsv($ledgerAccountId: UUID!) {
+    accountEntryCsv(ledgerAccountId: $ledgerAccountId) {
+      id
+      documentId
+      status
+      createdAt
     }
   }
 
@@ -108,11 +91,8 @@ export const ExportCsvDialog: React.FC<ExportCsvDialogProps> = ({
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollingCsvIdRef = useRef<string | null>(null)
 
-  const { data, loading, error, refetch } = useAccountingCsvsForLedgerAccountIdQuery({
-    variables: {
-      ledgerAccountId,
-      first: 5,
-    },
+  const { data, loading, error, refetch } = useAccountEntryCsvQuery({
+    variables: { ledgerAccountId },
     skip: !isOpen,
     fetchPolicy: "network-only",
     notifyOnNetworkStatusChange: false,
@@ -122,14 +102,17 @@ export const ExportCsvDialog: React.FC<ExportCsvDialogProps> = ({
   const [generateDownloadLink] = useAccountingCsvDownloadLinkGenerateMutation()
 
   useEffect(() => {
-    if (data?.accountingCsvsForLedgerAccountId.edges) {
-      const options = data.accountingCsvsForLedgerAccountId.edges.map((edge) => ({
-        id: edge.node.id,
-        documentId: edge.node.documentId,
-        label: `${formatDate(edge.node.createdAt)} - ${t(`status.${edge.node.status.toLowerCase()}`)}`,
-        status: edge.node.status,
-        createdAt: edge.node.createdAt,
-      }))
+    if (data?.accountEntryCsv) {
+      const doc = data.accountEntryCsv
+      const options = [
+        {
+          id: doc.id,
+          documentId: doc.documentId,
+          label: `${formatDate(doc.createdAt)} - ${t(`status.${doc.status.toLowerCase()}`)}`,
+          status: doc.status,
+          createdAt: doc.createdAt,
+        },
+      ]
       setCsvOptions(options)
       if (pollingCsvIdRef.current) {
         const pollingCsv = options.find(

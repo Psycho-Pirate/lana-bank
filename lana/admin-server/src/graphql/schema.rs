@@ -3,12 +3,10 @@ use async_graphql::{Context, Object, types::connection::*};
 use std::io::Read;
 
 use lana_app::{
-    accounting::csv::AccountingCsvDocumentId,
     accounting_init::constants::{
         BALANCE_SHEET_NAME, PROFIT_AND_LOSS_STATEMENT_NAME, TRIAL_BALANCE_STATEMENT_NAME,
     },
     app::LanaApp,
-    document::DocumentsByCreatedAtCursor,
 };
 
 use crate::primitives::*;
@@ -819,30 +817,6 @@ impl Query {
         Ok(config.map(ProfitAndLossStatementModuleConfig::from))
     }
 
-    async fn accounting_csvs_for_ledger_account_id(
-        &self,
-        ctx: &Context<'_>,
-        ledger_account_id: UUID,
-        first: i32,
-        after: Option<String>,
-    ) -> async_graphql::Result<
-        Connection<DocumentsByCreatedAtCursor, AccountingCsvDocument, EmptyFields, EmptyFields>,
-    > {
-        let (app, sub) = app_and_sub_from_ctx!(ctx);
-        list_with_cursor_and_id!(
-            DocumentsByCreatedAtCursor,
-            AccountingCsvDocument,
-            AccountingCsvDocumentId,
-            ctx,
-            after,
-            first,
-            |query| app
-                .accounting()
-                .csvs()
-                .list_for_ledger_account_id_paginated(sub, ledger_account_id, query)
-        )
-    }
-
     async fn public_id_target(
         &self,
         ctx: &Context<'_>,
@@ -885,7 +859,7 @@ impl Query {
         Ok(agreement.map(LoanAgreement::from))
     }
 
-    async fn latest_accounting_csv_for_ledger_account_id(
+    async fn account_entry_csv(
         &self,
         ctx: &Context<'_>,
         ledger_account_id: UUID,
