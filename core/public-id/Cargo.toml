@@ -1,6 +1,6 @@
 [package]
 name = "public-id"
-version = "0.3.767-dev"
+version = "0.3.768-dev"
 edition = "2024"
 license = "FSL-1.1-ALv2"
 
