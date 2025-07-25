@@ -86,9 +86,6 @@
           "format": "uuid",
           "type": "string"
         },
-        "status": {
-          "$ref": "#/$defs/DepositStatus"
-        },
         "type": {
           "const": "reverted",
           "type": "string"
@@ -97,6 +94,25 @@
       "required": [
         "type",
         "ledger_tx_id",
+        "audit_info"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "audit_info": {
+          "$ref": "#/$defs/AuditInfo"
+        },
+        "status": {
+          "$ref": "#/$defs/DepositStatus"
+        },
+        "type": {
+          "const": "status_updated",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
         "status",
         "audit_info"
       ],
