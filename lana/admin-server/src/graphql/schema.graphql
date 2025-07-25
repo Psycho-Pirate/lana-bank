@@ -14,35 +14,6 @@ type AccountingCsvDocument {
 	filename: String!
 }
 
-type AccountingCsvDocumentConnection {
-	"""
-	Information to aid in pagination.
-	"""
-	pageInfo: PageInfo!
-	"""
-	A list of edges.
-	"""
-	edges: [AccountingCsvDocumentEdge!]!
-	"""
-	A list of nodes.
-	"""
-	nodes: [AccountingCsvDocument!]!
-}
-
-"""
-An edge in a connection.
-"""
-type AccountingCsvDocumentEdge {
-	"""
-	The item at the end of the edge
-	"""
-	node: AccountingCsvDocument!
-	"""
-	A cursor for use in pagination
-	"""
-	cursor: String!
-}
-
 type AccountingCsvDownloadLink {
 	url: String!
 	csvId: UUID!
@@ -1634,9 +1605,9 @@ type Query {
 	creditConfig: CreditModuleConfig
 	balanceSheetConfig: BalanceSheetModuleConfig
 	profitAndLossStatementConfig: ProfitAndLossStatementModuleConfig
-	accountingCsvsForLedgerAccountId(ledgerAccountId: UUID!, first: Int!, after: String): AccountingCsvDocumentConnection!
 	publicIdTarget(id: PublicId!): PublicIdTarget
 	loanAgreement(id: UUID!): LoanAgreement
+	accountEntryCsv(ledgerAccountId: UUID!): AccountingCsvDocument
 }
 
 type RealtimePrice {
