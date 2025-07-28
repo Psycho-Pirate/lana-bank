@@ -81,7 +81,6 @@ impl JobPoller {
         name = "job.poll_and_dispatch",
         skip(self),
         fields(n_jobs_running, n_jobs_to_start, now, next_poll_in),
-        ret,
         err
     )]
     async fn poll_and_dispatch(self: &Arc<Self>, woken_up: bool) -> Result<Duration, JobError> {
