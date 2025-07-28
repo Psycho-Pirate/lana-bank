@@ -14,6 +14,7 @@ import {
 } from "@lana/web/ui/dialog"
 import { Button } from "@lana/web/ui/button"
 import { Input } from "@lana/web/ui/input"
+import { Textarea } from "@lana/web/ui/textarea"
 import { Label } from "@lana/web/ui/label"
 import { Checkbox } from "@lana/web/ui/check-box"
 import {
@@ -110,7 +111,9 @@ export const CreateCustodianDialog: React.FC<CreateCustodianDialogProps> = ({
 
   const [createCustodian, { loading }] = useCustodianCreateMutation()
 
-  const handleKomainuInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleKomainuInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target
     setKomainuConfig((prev) => ({ ...prev, [name]: value }))
   }
@@ -250,10 +253,9 @@ export const CreateCustodianDialog: React.FC<CreateCustodianDialogProps> = ({
                 <Label htmlFor="secretKey" required>
                   {t("fields.secretKey")}
                 </Label>
-                <Input
+                <Textarea
                   id="secretKey"
                   name="secretKey"
-                  type="password"
                   value={komainuConfig.secretKey}
                   onChange={handleKomainuInputChange}
                   placeholder={t("placeholders.secretKey")}
