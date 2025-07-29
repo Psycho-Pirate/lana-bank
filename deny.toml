@@ -146,6 +146,11 @@ expression = "LicenseRef-FSL-1.1-ALv2"
 license-files = []
 
 [[licenses.clarify]]
+crate = "airflow"
+expression = "LicenseRef-FSL-1.1-ALv2"
+license-files = []
+
+[[licenses.clarify]]
 crate = "audit"
 expression = "LicenseRef-FSL-1.1-ALv2"
 license-files = []
@@ -197,6 +202,11 @@ license-files = []
 
 [[licenses.clarify]]
 crate = "core-money"
+expression = "LicenseRef-FSL-1.1-ALv2"
+license-files = []
+
+[[licenses.clarify]]
+crate = "core-report"
 expression = "LicenseRef-FSL-1.1-ALv2"
 license-files = []
 
@@ -430,10 +440,7 @@ unknown-git = "warn"
 # if not specified. If it is specified but empty, no registries are allowed.
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # List of URLs for allowed Git repositories
-allow-git = [
-    "https://github.com/bodymindarts/yup-oauth2.git",
-    "https://github.com/bodymindarts/gcp-bigquery-client.git",
-]
+allow-git = []
 
 [sources.allow-org]
 # github.com organizations to allow git sources for
