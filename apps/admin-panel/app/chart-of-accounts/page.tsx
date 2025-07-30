@@ -4,7 +4,7 @@ import React, { useState, useCallback, MouseEventHandler } from "react"
 import { ApolloError, gql } from "@apollo/client"
 import { useTranslations } from "next-intl"
 
-import { IoAddSharp, IoCaretDownSharp, IoCaretForwardSharp } from "react-icons/io5"
+import { IoCaretDownSharp, IoCaretForwardSharp } from "react-icons/io5"
 
 import { Skeleton } from "@lana/web/ui/skeleton"
 import { Table, TableBody, TableCell, TableRow } from "@lana/web/ui/table"
@@ -25,7 +25,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
 import ChartOfAccountsUpload from "./upload"
-import { AddChartNodeDialog } from "./add-node"
+import { AddRootNodeDialog } from "./add-root-node-dialog"
 
 import {
   useChartOfAccountsQuery,
@@ -55,6 +55,30 @@ gql`
               ...ChartAccountBase
               children {
                 ...ChartAccountBase
+                children {
+                  ...ChartAccountBase
+                  children {
+                    ...ChartAccountBase
+                    children {
+                      ...ChartAccountBase
+                      children {
+                        ...ChartAccountBase
+                        children {
+                          ...ChartAccountBase
+                          children {
+                            ...ChartAccountBase
+                            children {
+                              ...ChartAccountBase
+                              children {
+                                ...ChartAccountBase
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -106,21 +130,11 @@ const getIndentLevel = (accountCode: string): number => {
   return accountCode.split(".").length - 1
 }
 
-const getIndentClass = (accountCode: string): string => {
+const getIndentStyle = (accountCode: string): React.CSSProperties => {
   const level = getIndentLevel(accountCode)
-  switch (level) {
-    case 0:
-      return ""
-    case 1:
-      return "pl-6"
-    case 2:
-      return "pl-12"
-    case 3:
-      return "pl-24"
-    case 4:
-      return "pl-32"
-    default:
-      return `pl-[${Math.min(level * 8, 56)}]`
+  const paddingLeft = level * 40
+  return {
+    paddingLeft: `${paddingLeft}px`,
   }
 }
 
@@ -156,13 +170,11 @@ interface AccountRowProps {
   hasDots: boolean
   isExpanded: boolean
   toggleExpand: () => void
-  onAddChild: (parentCode: string) => void
 }
 
 const AccountRow = React.memo<AccountRowProps>(
-  ({ account, hasDots, isExpanded, toggleExpand, onAddChild }) => {
+  ({ account, hasDots, isExpanded, toggleExpand }) => {
     const t = useTranslations("ChartOfAccounts")
-    const [isHovered, setIsHovered] = useState(false)
     const router = useRouter()
 
     const onClick: MouseEventHandler<HTMLTableRowElement> = (e) => {
@@ -171,21 +183,11 @@ const AccountRow = React.memo<AccountRowProps>(
       router.push(`/ledger-accounts/${account.accountCode}`)
     }
 
-    const handleAddChild = (e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      onAddChild(account.accountCode)
-    }
-
     return (
-      <TableRow
-        className="cursor-pointer group"
-        onClick={onClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <TableRow className="cursor-pointer" onClick={onClick}>
         <TableCell
-          className={`${getIndentClass(account.accountCode)} flex justify-between`}
+          className="flex justify-between"
+          style={getIndentStyle(account.accountCode)}
         >
           <div className="grid grid-cols-[100px_40px_1fr] items-center">
             <div>
@@ -223,20 +225,7 @@ const AccountRow = React.memo<AccountRowProps>(
             </div>
             <span className={getTextClass(account.accountCode)}>{account.name}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              className={`h-6 w-6 p-0 transition-opacity ${
-                isHovered ? "opacity-100" : "opacity-0"
-              }`}
-              onClick={handleAddChild}
-              data-testid={`add-child-${account.accountCode}`}
-            >
-              <IoAddSharp className="h-3 w-3" />
-            </Button>
-            <div className="font-mono text-xs text-gray-500">{account.accountCode}</div>
-          </div>
+          <div className="font-mono text-xs text-gray-500">{account.accountCode}</div>
         </TableCell>
       </TableRow>
     )
@@ -248,14 +237,12 @@ interface ChartOfAccountsViewProps {
   data?: ChartOfAccountsQuery | null
   loading: boolean
   error?: ApolloError
-  onAddChild: (parentCode: string) => void
 }
 
 const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
   data,
   loading,
   error,
-  onAddChild,
 }) => {
   const [expandedAccounts, setExpandedAccounts] = useState<Record<string, boolean>>({})
 
@@ -302,7 +289,6 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
           hasDots={dotChildrenExist}
           isExpanded={isExpanded}
           toggleExpand={() => toggleExpand(current.accountCode)}
-          onAddChild={onAddChild}
         />,
       )
 
@@ -340,8 +326,7 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
 
 const ChartOfAccountsPage: React.FC = () => {
   const t = useTranslations("ChartOfAccounts")
-  const [openAddNodeDialog, setOpenAddNodeDialog] = useState(false)
-  const [parentCodeForNewNode, setParentCodeForNewNode] = useState<string | undefined>()
+  const [openAddRootNodeDialog, setOpenAddRootNodeDialog] = useState(false)
 
   const {
     data: newChartData,
@@ -351,16 +336,8 @@ const ChartOfAccountsPage: React.FC = () => {
     fetchPolicy: "cache-and-network",
   })
 
-  const chartId = newChartData?.chartOfAccounts?.chartId
-
-  const handleAddChild = (parentCode: string) => {
-    setParentCodeForNewNode(parentCode)
-    setOpenAddNodeDialog(true)
-  }
-
-  const handleOpenAddNode = () => {
-    setParentCodeForNewNode(undefined)
-    setOpenAddNodeDialog(true)
+  const handleOpenAddRootNode = () => {
+    setOpenAddRootNodeDialog(true)
   }
 
   return (
@@ -372,43 +349,38 @@ const ChartOfAccountsPage: React.FC = () => {
               <CardTitle>{t("title")}</CardTitle>
               <CardDescription>{t("description")}</CardDescription>
             </div>
-            {chartId && (
+            {newChartData?.chartOfAccounts && (
               <Button
                 variant="outline"
-                onClick={handleOpenAddNode}
-                data-testid="add-chart-node-button"
+                onClick={handleOpenAddRootNode}
+                data-testid="add-root-node-button"
               >
-                {t("addNode")}
+                {t("addRootNode")}
               </Button>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {chartId && (
+          {newChartData?.chartOfAccounts && (
             <>
               {newChartData.chartOfAccounts.children.length > 0 ? (
                 <ChartOfAccountsView
                   data={newChartData}
                   loading={newChartLoading}
                   error={newChartError}
-                  onAddChild={handleAddChild}
                 />
               ) : (
-                <ChartOfAccountsUpload chartId={chartId} />
+                <ChartOfAccountsUpload chartId={newChartData.chartOfAccounts.chartId} />
               )}
             </>
           )}
         </CardContent>
       </Card>
 
-      {chartId && (
-        <AddChartNodeDialog
-          openAddNodeDialog={openAddNodeDialog}
-          setOpenAddNodeDialog={setOpenAddNodeDialog}
-          chartId={chartId}
-          parentCode={parentCodeForNewNode}
-        />
-      )}
+      <AddRootNodeDialog
+        open={openAddRootNodeDialog}
+        onOpenChange={setOpenAddRootNodeDialog}
+      />
     </>
   )
 }
