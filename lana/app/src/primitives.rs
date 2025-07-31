@@ -1,7 +1,3 @@
-use serde::{Deserialize, Serialize};
-
-use std::fmt;
-
 pub use core_access::{PermissionSetId, RoleId, UserId};
 pub use core_accounting::{
     AccountSpec, BalanceRange, Chart, ChartId, LedgerTransactionId, ManualTransactionId,
@@ -22,47 +18,11 @@ pub use job::JobId;
 pub use lana_ids::*;
 pub use rbac_types::Subject;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
-#[serde(transparent)]
-#[sqlx(transparent)]
-pub struct InterestAccrualCycleIdx(i32);
-impl fmt::Display for InterestAccrualCycleIdx {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-impl InterestAccrualCycleIdx {
-    pub const FIRST: Self = Self(1);
-    pub const fn next(&self) -> Self {
-        Self(self.0 + 1)
-    }
-}
-
-// Consider importing from cala
-#[derive(Debug)]
-pub enum LedgerAccountSetMemberType {
-    Account,
-    AccountSet,
-}
-
-#[derive(async_graphql::Enum, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub enum LoanStatus {
-    New,
-    Active,
-    Closed,
-}
-
 pub use cala_ledger::primitives::{
     AccountId as CalaAccountId, AccountSetId as CalaAccountSetId, Currency,
     DebitOrCredit as CalaDebitOrCredit, EntryId as CalaEntryId, JournalId as CalaJournalId,
     TransactionId as CalaTxId, TxTemplateId as CalaTxTemplateId,
 };
-
-#[derive(async_graphql::Enum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ReportProgress {
-    Running,
-    Complete,
-}
 
 #[cfg(test)]
 mod test {
