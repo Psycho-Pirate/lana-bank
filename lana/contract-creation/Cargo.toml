@@ -1,0 +1,37 @@
+[package]
+name = "contract-creation"
+version = "0.3.762-dev"
+license = "FSL-1.1-ALv2"
+edition = "2024"
+
+[package.metadata.cargo-machete]
+ignored = ["schemars"]
+
+[features]
+fail-on-warnings = []
+json-schema = ["dep:schemars", "es-entity/json-schema", "audit/json-schema", "outbox/json-schema"]
+
+[dependencies]
+core-customer = { path = "../../core/customer" }
+core-applicant = { path = "../../core/applicant" }
+document-storage = { path = "../../core/document-storage" }
+job = { path = "../../lib/job" }
+outbox = { path = "../../lib/outbox" }
+authz = { path = "../../lib/authz" }
+audit = { path = "../../lib/audit" }
+rendering = { path = "../../lib/rendering" }
+
+# External dependencies
+es-entity = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+handlebars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+strum = { workspace = true }
+
+schemars = { workspace = true, optional = true }

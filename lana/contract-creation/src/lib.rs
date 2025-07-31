@@ -1,16 +1,15 @@
-use crate::applicant::Applicants;
-use crate::authorization::Authorization;
-use crate::customer::Customers;
+use std::marker::PhantomData;
+
 use ::job::{JobId, Jobs};
+use audit::AuditSvc;
 use authz::PermissionCheck;
-use chrono;
-use core_credit::CustomerId;
+use core_applicant::Applicants;
+use core_customer::{CoreCustomerAction, CoreCustomerEvent, CustomerId, CustomerObject, Customers};
 use document_storage::{
     Document, DocumentId, DocumentStatus, DocumentStorage, DocumentType,
     GeneratedDocumentDownloadLink, ReferenceId,
 };
-use lana_ids::ContractCreationId;
-use rbac_types::{AppAction, AppObject, LanaAction, LanaObject, Subject};
+use outbox::OutboxEventMarker;
 use uuid::Uuid;
 
 mod error;
@@ -19,29 +18,57 @@ mod templates;
 
 pub use error::*;
 pub use job::*;
-
-#[derive(Clone)]
-pub struct ContractCreation {
-    document_storage: DocumentStorage,
-    jobs: Jobs,
-    authz: Authorization,
-}
+pub use primitives::{ContractCreationId, ContractModuleAction, ContractModuleObject};
 
 use tracing::instrument;
 
+pub mod primitives;
 const LOAN_AGREEMENT_DOCUMENT_TYPE: DocumentType = DocumentType::new("loan_agreement");
 
-impl ContractCreation {
-    pub fn try_new(
-        customers: &Customers,
-        applicants: &Applicants,
+pub struct ContractCreation<Perms, E>
+where
+    Perms: PermissionCheck,
+    E: OutboxEventMarker<CoreCustomerEvent>,
+{
+    document_storage: DocumentStorage,
+    jobs: Jobs,
+    authz: Perms,
+    _phantom: std::marker::PhantomData<(Perms, E)>,
+}
+
+impl<Perms: PermissionCheck, E> Clone for ContractCreation<Perms, E>
+where
+    Perms: PermissionCheck,
+    E: OutboxEventMarker<CoreCustomerEvent>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            document_storage: self.document_storage.clone(),
+            jobs: self.jobs.clone(),
+            authz: self.authz.clone(),
+            _phantom: self._phantom,
+        }
+    }
+}
+
+impl<Perms, E> ContractCreation<Perms, E>
+where
+    Perms: PermissionCheck,
+    E: OutboxEventMarker<CoreCustomerEvent>,
+    <<Perms as PermissionCheck>::Audit as AuditSvc>::Action:
+        From<ContractModuleAction> + From<CoreCustomerAction>,
+    <<Perms as PermissionCheck>::Audit as AuditSvc>::Object:
+        From<ContractModuleObject> + From<CustomerObject>,
+{
+    pub fn new(
+        customers: &Customers<Perms, E>,
+        applicants: &Applicants<Perms, E>,
         document_storage: &DocumentStorage,
         jobs: &Jobs,
-        authz: &Authorization,
-    ) -> Result<Self, ContractCreationError> {
+        authz: &Perms,
+    ) -> Self {
         let renderer = rendering::Renderer::new();
-
-        let contract_templates = templates::ContractTemplates::try_new()?;
+        let contract_templates = templates::ContractTemplates::new();
 
         // Initialize the job system for contract creation
         jobs.add_initializer(GenerateLoanAgreementJobInitializer::new(
@@ -52,17 +79,18 @@ impl ContractCreation {
             renderer.clone(),
         ));
 
-        Ok(Self {
+        Self {
             document_storage: document_storage.clone(),
             jobs: jobs.clone(),
             authz: authz.clone(),
-        })
+            _phantom: std::marker::PhantomData,
+        }
     }
 
     #[instrument(name = "contract.initiate_loan_agreement_generation", skip(self), err)]
     pub async fn initiate_loan_agreement_generation(
         &self,
-        sub: &Subject,
+        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
         customer_id: impl Into<CustomerId> + std::fmt::Debug,
     ) -> Result<LoanAgreement, ContractCreationError> {
         let customer_id = customer_id.into();
@@ -71,10 +99,8 @@ impl ContractCreation {
             .authz
             .enforce_permission(
                 sub,
-                LanaObject::App(AppObject::all_contract_creation()),
-                LanaAction::App(AppAction::ContractCreation(
-                    rbac_types::ContractCreationAction::Generate,
-                )),
+                ContractModuleObject::all_contracts(),
+                ContractModuleAction::CONTRACT_GENERATE_DOWNLOAD_LINK,
             )
             .await?;
 
@@ -94,10 +120,13 @@ impl ContractCreation {
             .await?;
 
         self.jobs
-            .create_and_spawn_in_op::<GenerateLoanAgreementConfig>(
+            .create_and_spawn_in_op::<GenerateLoanAgreementConfig<Perms, E>>(
                 &mut db,
                 JobId::from(uuid::Uuid::from(document.id)),
-                GenerateLoanAgreementConfig { customer_id },
+                GenerateLoanAgreementConfig::<Perms, E> {
+                    customer_id,
+                    phantom: PhantomData,
+                },
             )
             .await?;
 
@@ -108,7 +137,7 @@ impl ContractCreation {
     #[instrument(name = "contract.find_by_id", skip(self), err)]
     pub async fn find_by_id(
         &self,
-        sub: &Subject,
+        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
         contract_id: impl Into<ContractCreationId> + std::fmt::Debug,
     ) -> Result<Option<LoanAgreement>, ContractCreationError> {
         let contract_id = contract_id.into();
@@ -118,10 +147,8 @@ impl ContractCreation {
             .authz
             .enforce_permission(
                 sub,
-                LanaObject::App(AppObject::all_contract_creation()),
-                LanaAction::App(AppAction::ContractCreation(
-                    rbac_types::ContractCreationAction::Find,
-                )),
+                ContractModuleObject::all_contracts(),
+                ContractModuleAction::CONTRACT_FIND,
             )
             .await?;
 
@@ -135,8 +162,7 @@ impl ContractCreation {
     #[instrument(name = "contract.generate_document_download_link", skip(self), err)]
     pub async fn generate_document_download_link(
         &self,
-        sub: &Subject,
-        // sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
+        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
         contract_id: impl Into<ContractCreationId> + std::fmt::Debug,
     ) -> Result<GeneratedDocumentDownloadLink, ContractCreationError> {
         let contract_id = contract_id.into();
@@ -144,10 +170,8 @@ impl ContractCreation {
             .authz
             .enforce_permission(
                 sub,
-                LanaObject::App(AppObject::all_contract_creation()),
-                LanaAction::App(AppAction::ContractCreation(
-                    rbac_types::ContractCreationAction::GenerateDownloadLink,
-                )),
+                ContractModuleObject::all_contracts(),
+                ContractModuleAction::CONTRACT_GENERATE_DOWNLOAD_LINK,
             )
             .await?;
 
@@ -237,14 +261,14 @@ pub struct LoanAgreement {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_contract_creation_config() -> Result<(), error::ContractCreationError> {
+    #[test]
+    fn test_contract_creation_config() -> Result<(), error::ContractCreationError> {
         // Test that the embedded PDF config works correctly
         // Verify that renderer can be created with embedded config
         let _renderer = rendering::Renderer::new();
 
         // Test embedded templates
-        let contract_templates = templates::ContractTemplates::try_new()?;
+        let contract_templates = templates::ContractTemplates::new();
         let data = serde_json::json!({
             "full_name": "Test User",
             "email": "test@example.com",

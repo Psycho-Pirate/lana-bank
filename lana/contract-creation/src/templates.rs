@@ -9,20 +9,24 @@ pub struct ContractTemplates {
     handlebars: Handlebars<'static>,
 }
 
+impl Default for ContractTemplates {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ContractTemplates {
     /// Create a new contract templates instance with embedded templates
-    pub fn try_new() -> Result<Self, ContractCreationError> {
+    pub fn new() -> Self {
         let mut handlebars = Handlebars::new();
         handlebars
             .register_template_string(
                 "loan_agreement",
                 include_str!("templates/loan_agreement.md.hbs"),
             )
-            .map_err(|e| {
-                ContractCreationError::Rendering(rendering::RenderingError::Template(e))
-            })?;
+            .expect("Could not register 'loan_agreement' template");
 
-        Ok(Self { handlebars })
+        Self { handlebars }
     }
 
     /// Render a contract template with the provided data
