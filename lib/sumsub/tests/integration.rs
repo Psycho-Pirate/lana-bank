@@ -50,7 +50,7 @@ async fn test_create_real_applicant() {
     );
     assert_eq!(
         applicant_details.fixed_info.full_name(),
-        Some(format!("{} {}", TEST_FIRST_NAME, TEST_LAST_NAME))
+        Some(format!("{TEST_FIRST_NAME} {TEST_LAST_NAME}"))
     );
 }
 
