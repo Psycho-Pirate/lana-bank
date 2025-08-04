@@ -1,6 +1,7 @@
 #![cfg_attr(feature = "fail-on-warnings", deny(warnings))]
 #![cfg_attr(feature = "fail-on-warnings", deny(clippy::all))]
 
+mod config;
 mod entity;
 pub mod error;
 mod event;
@@ -153,6 +154,32 @@ where
     {
         let id = CustomerId::try_from(sub).map_err(|_| CustomerError::SubjectIsNotCustomer)?;
         self.repo.find_by_id(id).await
+    }
+
+    pub async fn record_activity_by_id(
+        &self,
+        customer_id: CustomerId,
+        activity_type: ActivityType,
+    ) -> Result<Customer, CustomerError> {
+        let mut customer = self.repo.find_by_id(customer_id).await?;
+
+        let audit_info = self
+            .authz
+            .audit()
+            .record_system_entry(
+                CustomerObject::customer(customer_id),
+                CoreCustomerAction::CUSTOMER_READ,
+            )
+            .await?;
+
+        if customer
+            .record_activity(activity_type, audit_info)
+            .did_execute()
+        {
+            self.repo.update(&mut customer).await?;
+        }
+
+        Ok(customer)
     }
 
     #[instrument(name = "customer.find_by_id", skip(self), err)]

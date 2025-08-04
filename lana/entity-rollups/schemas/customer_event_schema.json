@@ -7,6 +7,13 @@
       ],
       "type": "string"
     },
+    "ActivityType": {
+      "enum": [
+        "transaction",
+        "account-view"
+      ],
+      "type": "string"
+    },
     "AuditEntryId": {
       "format": "int64",
       "type": "integer"
@@ -183,6 +190,26 @@
       "required": [
         "type",
         "status",
+        "audit_info"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "activity_type": {
+          "$ref": "#/$defs/ActivityType"
+        },
+        "audit_info": {
+          "$ref": "#/$defs/AuditInfo"
+        },
+        "type": {
+          "const": "activity_recorded",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "activity_type",
         "audit_info"
       ],
       "type": "object"

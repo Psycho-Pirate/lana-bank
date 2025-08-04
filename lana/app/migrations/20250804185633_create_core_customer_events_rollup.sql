@@ -5,6 +5,7 @@ CREATE TABLE core_customer_events_rollup (
   created_at TIMESTAMPTZ NOT NULL,
   modified_at TIMESTAMPTZ NOT NULL,
   -- Flattened fields from the event JSON
+  activity_type VARCHAR,
   applicant_id VARCHAR,
   authentication_id UUID,
   customer_type VARCHAR,
@@ -41,7 +42,7 @@ BEGIN
   END IF;
 
   -- Validate event type is known
-  IF event_type NOT IN ('initialized', 'authentication_id_updated', 'kyc_started', 'kyc_approved', 'kyc_declined', 'account_status_updated', 'telegram_id_updated', 'email_updated') THEN
+  IF event_type NOT IN ('initialized', 'authentication_id_updated', 'kyc_started', 'kyc_approved', 'kyc_declined', 'account_status_updated', 'activity_recorded', 'telegram_id_updated', 'email_updated') THEN
     RAISE EXCEPTION 'Unknown event type: %', event_type;
   END IF;
 
@@ -53,6 +54,7 @@ BEGIN
 
   -- Initialize fields with default values if this is a new record
   IF current_row.id IS NULL THEN
+    new_row.activity_type := (NEW.event ->> 'activity_type');
     new_row.applicant_id := (NEW.event ->> 'applicant_id');
     new_row.audit_entry_ids := CASE
        WHEN NEW.event ? 'audit_entry_ids' THEN
@@ -70,6 +72,7 @@ BEGIN
     new_row.telegram_id := (NEW.event ->> 'telegram_id');
   ELSE
     -- Default all fields to current values
+    new_row.activity_type := current_row.activity_type;
     new_row.applicant_id := current_row.applicant_id;
     new_row.audit_entry_ids := current_row.audit_entry_ids;
     new_row.authentication_id := current_row.authentication_id;
@@ -106,6 +109,9 @@ BEGIN
     WHEN 'account_status_updated' THEN
       new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
       new_row.status := (NEW.event ->> 'status');
+    WHEN 'activity_recorded' THEN
+      new_row.activity_type := (NEW.event ->> 'activity_type');
+      new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
     WHEN 'telegram_id_updated' THEN
       new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
       new_row.telegram_id := (NEW.event ->> 'telegram_id');
@@ -119,6 +125,7 @@ BEGIN
     version,
     created_at,
     modified_at,
+    activity_type,
     applicant_id,
     audit_entry_ids,
     authentication_id,
@@ -135,6 +142,7 @@ BEGIN
     new_row.version,
     new_row.created_at,
     new_row.modified_at,
+    new_row.activity_type,
     new_row.applicant_id,
     new_row.audit_entry_ids,
     new_row.authentication_id,

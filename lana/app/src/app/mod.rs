@@ -291,4 +291,70 @@ impl LanaApp {
     > {
         crate::authorization::get_visible_navigation_items(&self.authz, sub).await
     }
+
+    pub async fn get_customer_with_activity(
+        &self,
+        sub: &Subject,
+    ) -> Result<core_customer::Customer, ApplicationError> {
+        let customer = self.customers().find_for_subject(sub).await?;
+
+        let _ = self
+            .customers()
+            .record_activity_by_id(customer.id, core_customer::ActivityType::AccountView)
+            .await;
+
+        Ok(customer)
+    }
+
+    pub async fn record_deposit_with_activity(
+        &self,
+        sub: &Subject,
+        deposit_account_id: impl Into<core_deposit::DepositAccountId> + std::fmt::Debug + Clone,
+        amount: core_money::UsdCents,
+        reference: Option<String>,
+    ) -> Result<core_deposit::Deposit, ApplicationError> {
+        let deposit = self
+            .deposits()
+            .record_deposit(sub, deposit_account_id.clone(), amount, reference)
+            .await?;
+
+        let account = self
+            .deposits()
+            .find_account_by_id(sub, deposit_account_id)
+            .await?;
+        let customer_id = account.unwrap().account_holder_id;
+
+        let _ = self
+            .customers()
+            .record_activity_by_id(customer_id.into(), core_customer::ActivityType::Transaction)
+            .await;
+
+        Ok(deposit)
+    }
+
+    pub async fn initiate_withdrawal_with_activity(
+        &self,
+        sub: &Subject,
+        deposit_account_id: impl Into<core_deposit::DepositAccountId> + std::fmt::Debug + Clone,
+        amount: core_money::UsdCents,
+        reference: Option<String>,
+    ) -> Result<core_deposit::Withdrawal, ApplicationError> {
+        let withdrawal = self
+            .deposits()
+            .initiate_withdrawal(sub, deposit_account_id.clone(), amount, reference)
+            .await?;
+
+        let account = self
+            .deposits()
+            .find_account_by_id(sub, deposit_account_id)
+            .await?;
+        let customer_id = account.unwrap().account_holder_id;
+
+        let _ = self
+            .customers()
+            .record_activity_by_id(customer_id.into(), core_customer::ActivityType::Transaction)
+            .await;
+
+        Ok(withdrawal)
+    }
 }

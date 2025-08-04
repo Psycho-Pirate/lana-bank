@@ -35,7 +35,7 @@ impl From<DomainCustomer> for Customer {
         Customer {
             id: customer.id.to_global_id(),
             customer_id: UUID::from(customer.id),
-            status: customer.status,
+            status: customer.get_effective_account_status(),
             level: customer.level,
             created_at: customer.created_at().into(),
             customer_type: customer.customer_type,

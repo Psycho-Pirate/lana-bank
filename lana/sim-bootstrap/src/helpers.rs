@@ -85,8 +85,7 @@ pub async fn make_deposit(
         .id;
 
     let _ = app
-        .deposits()
-        .record_deposit(sub, deposit_account_id, usd_cents, None)
+        .record_deposit_with_activity(sub, deposit_account_id, usd_cents, None)
         .await?;
 
     Ok(())

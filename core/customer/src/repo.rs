@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 pub use es_entity::Sort;
@@ -17,7 +18,8 @@ use super::{entity::*, error::*};
         authentication_id(ty = "Option<AuthenticationId>", list_by, create(persist = false)),
         telegram_id(ty = "String", list_by),
         status(ty = "AccountStatus", list_for),
-        public_id(ty = "PublicId", list_by)
+        public_id(ty = "PublicId", list_by),
+        last_activity(ty = "Option<DateTime<Utc>>", list_by)
     ),
     tbl_prefix = "core",
     post_persist_hook = "publish"
@@ -120,6 +122,9 @@ impl From<(CustomersSortBy, &Customer)> for customer_cursor::CustomersCursor {
             }
             CustomersSortBy::PublicId => {
                 customer_cursor::CustomersByPublicIdCursor::from(customer).into()
+            }
+            CustomersSortBy::LastActivity => {
+                customer_cursor::CustomersByLastActivityCursor::from(customer).into()
             }
         }
     }

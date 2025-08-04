@@ -1180,7 +1180,7 @@ impl Mutation {
             DepositRecordPayload,
             Deposit,
             ctx,
-            app.deposits().record_deposit(
+            app.record_deposit_with_activity(
                 sub,
                 input.deposit_account_id,
                 input.amount,
@@ -1199,7 +1199,7 @@ impl Mutation {
             WithdrawalInitiatePayload,
             Withdrawal,
             ctx,
-            app.deposits().initiate_withdrawal(
+            app.initiate_withdrawal_with_activity(
                 sub,
                 input.deposit_account_id,
                 input.amount,

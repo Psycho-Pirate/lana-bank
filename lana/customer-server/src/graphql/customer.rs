@@ -35,7 +35,7 @@ impl From<DomainCustomer> for Customer {
             id: customer.id.to_global_id(),
             customer_id: UUID::from(customer.id),
             customer_type: customer.customer_type,
-            status: customer.status,
+            status: customer.get_effective_account_status(),
             level: customer.level,
             created_at: customer.created_at().into(),
             entity: Arc::new(customer),

@@ -39,10 +39,22 @@ pub enum KycLevel {
 #[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
+// TODO: Add EscheatmentCandidate
 pub enum AccountStatus {
     #[default]
     Inactive,
     Active,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, strum::Display, strum::EnumString, Serialize, Deserialize,
+)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum ActivityType {
+    Transaction,
+    AccountView,
 }
 
 #[derive(Debug, Deserialize, Clone, Copy, Serialize, Eq, PartialEq)]
