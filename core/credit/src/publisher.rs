@@ -116,6 +116,12 @@ where
                     action,
                     ledger_tx_id,
                     ..
+                }
+                | UpdatedViaCustodianSync {
+                    abs_diff,
+                    action,
+                    ledger_tx_id,
+                    ..
                 } => Some(CoreCreditEvent::FacilityCollateralUpdated {
                     ledger_tx_id: *ledger_tx_id,
                     abs_diff: *abs_diff,
