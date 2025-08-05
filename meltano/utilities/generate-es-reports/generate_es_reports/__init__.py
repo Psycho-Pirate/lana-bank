@@ -1,10 +1,11 @@
 import os
 import io
 import csv
-from re import compile
 from pathlib import Path
 import logging, logging.config
 from abc import ABC, abstractmethod
+
+import yaml
 from google.cloud import bigquery, storage
 from dicttoxml import dicttoxml
 from google.oauth2 import service_account
@@ -15,7 +16,8 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-# Disable logging by external packages
+# Disable logging by external packages to prevent them from
+# bloating the console output
 logging.config.dictConfig(
     {
         "version": 1,
@@ -29,8 +31,6 @@ logger = logging.getLogger(name="generate-es-reports")
 class Constants:
     """Simple namespace to store constants and avoid magic vars."""
 
-    TABLE_NAME_PATTERN = compile(r"report_([0-9a-z_]+)_\d+_(.+)")
-
     DBT_BIGQUERY_PROJECT_ENVVAR_KEY = "DBT_BIGQUERY_PROJECT"
     DBT_BIGQUERY_DATASET_ENVVAR_KEY = "DBT_BIGQUERY_DATASET"
     DOCS_BUCKET_NAME_ENVVAR_KEY = "DOCS_BUCKET_NAME"
@@ -38,13 +38,176 @@ class Constants:
     AIRFLOW_CTX_DAG_RUN_ID_ENVVAR_KEY = "AIRFLOW_CTX_DAG_RUN_ID"
     USE_LOCAL_FS_ENVVAR_KEY = "USE_LOCAL_FS"
 
-    NRP_41_ID = "nrp_41"
-    NRP_51_ID = "nrp_51"
-    NRSF_03_ID = "nrsf_03"
 
-    XML_FORMATTABLE_NORMS = (NRP_41_ID, NRP_51_ID)
-    TXT_FORMATTABLE_NORMS = (NRSF_03_ID,)
-    CSV_FORMATTABLE_NORMS = (NRP_41_ID, NRP_51_ID, NRSF_03_ID)
+class StorableReportOutput:
+    """The contents of a report file, together with their content type."""
+
+    def __init__(self, report_content_type: str, report_content: str) -> None:
+        self.content_type = report_content_type
+        self.content = report_content
+
+
+class BaseFileOutputConfig(ABC):
+
+    file_extension: str = NotImplemented
+    content_type: str = NotImplemented
+
+    def __init_subclass__(cls):
+
+        mandatory_class_attributes = ("file_extension", "content_type")
+
+        for attribute in mandatory_class_attributes:
+            if getattr(cls, attribute) is NotImplemented:
+                raise NotImplementedError(f"{cls.__name__} must define '{attribute}'")
+
+    @abstractmethod
+    def rows_to_report_output(self, rows) -> StorableReportOutput:
+        pass
+
+
+class XMLFileOutputConfig(BaseFileOutputConfig):
+
+    file_extension = "xml"
+    content_type = "text/xml"
+
+    def __init__(self) -> None:
+        pass
+
+    def rows_to_report_output(self, rows) -> StorableReportOutput:
+        field_names = [field.name for field in rows.schema]
+        rows_data = [{name: row[name] for name in field_names} for row in rows]
+
+        xml_string = dicttoxml(rows_data, custom_root="rows", attr_type=False).decode(
+            "utf-8"
+        )
+        output = io.StringIO()
+        output.write(xml_string)
+        report_content = output.getvalue()
+
+        return StorableReportOutput(
+            report_content=report_content, report_content_type=self.content_type
+        )
+
+
+class CSVFileOutputConfig(BaseFileOutputConfig):
+
+    file_extension = "csv"
+    content_type = "text/plain"
+
+    def __init__(self, delimiter: str = ",", lineterminator: str = "\n") -> None:
+        self.delimiter = delimiter
+        self.lineterminator = lineterminator
+
+    def rows_to_report_output(self, rows) -> StorableReportOutput:
+        field_names = [field.name for field in rows.schema]
+        rows_data = [{name: row[name] for name in field_names} for row in rows]
+
+        output = io.StringIO()
+
+        writer = csv.DictWriter(
+            output,
+            fieldnames=field_names,
+            delimiter=self.delimiter,
+            lineterminator=self.lineterminator,
+        )
+        writer.writeheader()
+        writer.writerows(rows_data)
+        report_content = output.getvalue()
+
+        return StorableReportOutput(
+            report_content=report_content, report_content_type=self.content_type
+        )
+
+
+class TXTFileOutputConfig(BaseFileOutputConfig):
+
+    file_extension = "txt"
+    content_type = "text/plain"
+
+    def __init__(self, delimiter: str = "|", lineterminator: str = "\n") -> None:
+        self.delimiter = delimiter
+        self.lineterminator = lineterminator
+
+    def rows_to_report_output(self, rows) -> StorableReportOutput:
+        field_names = [field.name for field in rows.schema]
+        rows_data = [{name: row[name] for name in field_names} for row in rows]
+
+        output = io.StringIO()
+
+        writer = csv.DictWriter(
+            output,
+            fieldnames=field_names,
+            delimiter=self.delimiter,
+            lineterminator=self.lineterminator,
+        )
+        writer.writeheader()
+        writer.writerows(rows_data)
+        report_content = output.getvalue()
+
+        return StorableReportOutput(
+            report_content=report_content, report_content_type=self.content_type
+        )
+
+
+class ReportJobDefinition:
+    """
+    Defines a report that must be fetched and converted into
+    certain file formats.
+    """
+
+    def __init__(
+        self,
+        norm: str,
+        id: str,
+        friendly_name: str,
+        file_output_configs: tuple[BaseFileOutputConfig, ...],
+    ):
+        self.norm = norm
+        self.id = id
+        self.friendly_name = friendly_name
+        self.file_output_configs = file_output_configs
+
+    @property
+    def source_table_name(self) -> str:
+        return f"report_{self.norm}_{self.id}"
+
+
+def load_report_jobs_from_yaml(yaml_path: Path) -> tuple[ReportJobDefinition, ...]:
+    """Read report jobs to do from a YAML file.
+
+    Args:
+        yaml_path (Path): path to the YAML that holds the config.
+
+    Returns:
+        tuple[ReportJobDefinition, ...]: All the report jobs that must be run.
+    """
+    with open(yaml_path, "r", encoding="utf-8") as file:
+        data = yaml.safe_load(file)
+
+    str_to_type_mapping = {
+        "xml": XMLFileOutputConfig,
+        "csv": CSVFileOutputConfig,
+        "txt": TXTFileOutputConfig,
+    }
+
+    report_jobs = []
+    for report_job in data["report_jobs"]:
+        output_configs = []
+        for output in report_job["outputs"]:
+            output_config = str_to_type_mapping[output["type"].lower()]()
+            output_configs.append(output_config)
+        output_configs = tuple(output_configs)
+
+        report_jobs.append(
+            ReportJobDefinition(
+                norm=report_job["norm"],
+                id=report_job["id"],
+                friendly_name=report_job["friendly_name"],
+                file_output_configs=output_configs,
+            )
+        )
+
+    return tuple(report_jobs)
 
 
 class ReportGeneratorConfig:
@@ -120,19 +283,11 @@ def get_config_from_env() -> ReportGeneratorConfig:
     )
 
 
-class StorableReport:
-    """The contents of a report file, together with their format."""
-
-    def __init__(self, report_content_type: str, report_content: str) -> None:
-        self.content_type = report_content_type
-        self.content = report_content
-
-
 class ReportStorer(ABC):
     """Abstract interface for an object that can store a report contents as a file somewhere."""
 
     @abstractmethod
-    def store_report(self, path: str, report: StorableReport) -> None:
+    def store_report(self, path: str, report: StorableReportOutput) -> None:
         """Store a report given a path and contents.
 
         Args:
@@ -156,7 +311,7 @@ class GCSReportStorer(ReportStorer):
         )
         self._bucket = self._storage_client.bucket(bucket_name=target_bucket_name)
 
-    def store_report(self, path: str, report: StorableReport) -> None:
+    def store_report(self, path: str, report: StorableReportOutput) -> None:
         blob = self._bucket.blob(path)
         logger.info(f"Uploading to {path}...")
         blob.upload_from_string(report.content, content_type=report.content_type)
@@ -169,7 +324,7 @@ class LocalReportStorer(ReportStorer):
     def __init__(self, root_path: Path = Path("./report_files/")) -> None:
         self._root_path = root_path
 
-    def store_report(self, path: str, report: StorableReport) -> None:
+    def store_report(self, path: str, report: StorableReportOutput) -> None:
         target_path = self._root_path / path
 
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
@@ -221,79 +376,29 @@ def main():
 
     report_storer: ReportStorer = get_report_storer(config=report_generator_config)
 
-    gcs_report_storer = report_storer
+    report_config_yaml_path = Path(__file__).resolve().parent / "reports.yml"
+    report_jobs = load_report_jobs_from_yaml(report_config_yaml_path)
 
-    tables_iter = bq_client.list_tables(report_generator_config.dataset)
-
-    for table in tables_iter:
-        table_name = table.table_id
-        match = Constants.TABLE_NAME_PATTERN.match(table_name)
-        if not match:
-            continue
-        logger.info(f"Working on table {table_name}.")
-        norm_name = match.group(1)
-        report_name = match.group(2)
-
+    def get_rows_from_table(table_name: str):
         query = f"SELECT * FROM `{report_generator_config.project_id}.{report_generator_config.dataset}.{table_name}`;"
         query_job = bq_client.query(query)
         rows = query_job.result()
-        field_names = [field.name for field in rows.schema]
-        rows_data = [{name: row[name] for name in field_names} for row in rows]
 
-        blob_path = (
-            f"reports/{report_generator_config.run_id}/{norm_name}/{report_name}"
-        )
+        return rows
 
-        if norm_name in Constants.XML_FORMATTABLE_NORMS:
-            xml_string = dicttoxml(
-                rows_data, custom_root="rows", attr_type=False
-            ).decode("utf-8")
-            output = io.StringIO()
-            output.write(xml_string)
-            report_content = output.getvalue()
-            full_blob_path = blob_path + ".xml"
-            gcs_report_storer.store_report(
-                path=full_blob_path,
-                report=StorableReport(
-                    report_content=report_content,
-                    report_content_type="text/xml",
-                ),
-            )
+    for report_job in report_jobs:
+        logger.info(f"Working on report: {report_job.norm}-{report_job.id}")
+        path_without_extension = f"reports/{report_generator_config.run_id}/{report_job.norm}/{report_job.friendly_name}"
 
-        if norm_name == Constants.TXT_FORMATTABLE_NORMS:
-            output = io.StringIO()
-            writer = csv.DictWriter(
-                output, fieldnames=field_names, delimiter="|", lineterminator="\n"
+        for file_output_config in report_job.file_output_configs:
+            logger.info(f"Storing as {file_output_config.file_extension}.")
+            storable_report = file_output_config.rows_to_report_output(
+                rows=get_rows_from_table(table_name=report_job.source_table_name)
             )
-            writer.writeheader()
-            writer.writerows(rows_data)
-            report_content = output.getvalue()
-            full_blob_path = blob_path + ".txt"
-            gcs_report_storer.store_report(
-                path=full_blob_path,
-                report=StorableReport(
-                    report_content=report_content,
-                    report_content_type="text/plain",
-                ),
-            )
+            full_path = path_without_extension + "." + file_output_config.file_extension
+            report_storer.store_report(path=full_path, report=storable_report)
 
-        # CSV versions of all regulatory reports
-        if norm_name in Constants.CSV_FORMATTABLE_NORMS:
-            output = io.StringIO()
-            writer = csv.DictWriter(
-                output, fieldnames=field_names, delimiter=",", lineterminator="\n"
-            )
-            writer.writeheader()
-            writer.writerows(rows_data)
-            report_content = output.getvalue()
-            full_blob_path = blob_path + ".csv"
-            gcs_report_storer.store_report(
-                path=full_blob_path,
-                report=StorableReport(
-                    report_content=report_content,
-                    report_content_type="text/plain",
-                ),
-            )
+        logger.info(f"Finished: {report_job.norm}-{report_job.id}")
 
     logger.info("Finished run.")
 
