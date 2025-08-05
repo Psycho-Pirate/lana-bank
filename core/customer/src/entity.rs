@@ -206,7 +206,7 @@ impl Customer {
 
     pub fn inactivity_threshold(&self) -> Duration {
         let config = CustomerConfig::default();
-        Duration::days(config.inactivity_threshold_days as i64)
+        Duration::days(config.inactivity_threshold_days.into())
     }
 
     pub fn record_activity(

@@ -85,6 +85,7 @@ CREATE TABLE core_customers (
   telegram_id VARCHAR NOT NULL UNIQUE,
   status VARCHAR NOT NULL,
   public_id VARCHAR NOT NULL REFERENCES core_public_ids(id),
+  last_activity TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL
 );
 
@@ -391,6 +392,8 @@ CREATE TABLE core_documents (
 );
 
 CREATE INDEX idx_core_documents_reference_id ON core_documents(reference_id);
+
+CREATE INDEX idx_core_customers_last_activity ON core_customers(last_activity);
 
 CREATE TABLE core_document_events (
   id UUID NOT NULL REFERENCES core_documents(id),
