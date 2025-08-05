@@ -28,7 +28,7 @@ es_entity::entity_id! {
     CreditFacilityId,
     DisbursalId,
     PaymentId,
-    PaymentAllocationId,
+    ObligationInstallmentId,
     ChartOfAccountsIntegrationConfigId,
     CollateralId,
     ObligationId,
@@ -44,7 +44,7 @@ es_entity::entity_id! {
     ObligationId => job::JobId,
 
     DisbursalId => LedgerTxId,
-    PaymentAllocationId => LedgerTxId,
+    ObligationInstallmentId => LedgerTxId,
 
     CreditFacilityId => public_id::PublicIdTargetId,
     DisbursalId => public_id::PublicIdTargetId,
@@ -86,7 +86,7 @@ impl From<ObligationType> for BalanceUpdatedType {
 #[cfg_attr(feature = "json-schema", derive(JsonSchema))]
 pub enum BalanceUpdatedSource {
     Obligation(ObligationId),
-    PaymentAllocation(PaymentAllocationId),
+    ObligationInstallment(ObligationInstallmentId),
 }
 
 impl From<ObligationId> for BalanceUpdatedSource {
@@ -95,9 +95,9 @@ impl From<ObligationId> for BalanceUpdatedSource {
     }
 }
 
-impl From<PaymentAllocationId> for BalanceUpdatedSource {
-    fn from(allocation_id: PaymentAllocationId) -> Self {
-        Self::PaymentAllocation(allocation_id)
+impl From<ObligationInstallmentId> for BalanceUpdatedSource {
+    fn from(allocation_id: ObligationInstallmentId) -> Self {
+        Self::ObligationInstallment(allocation_id)
     }
 }
 
@@ -275,7 +275,7 @@ impl CoreCreditAction {
     pub const OBLIGATION_UPDATE_STATUS: Self =
         CoreCreditAction::Obligation(ObligationAction::UpdateStatus);
     pub const OBLIGATION_RECORD_PAYMENT: Self =
-        CoreCreditAction::Obligation(ObligationAction::RecordPaymentAllocation);
+        CoreCreditAction::Obligation(ObligationAction::RecordAllocation);
 
     pub const TERMS_TEMPLATE_CREATE: Self =
         CoreCreditAction::TermsTemplate(TermsTemplateAction::Create);
@@ -480,7 +480,7 @@ impl From<ChartOfAccountsIntegrationConfigAction> for CoreCreditAction {
 pub enum ObligationAction {
     Read,
     UpdateStatus,
-    RecordPaymentAllocation,
+    RecordAllocation,
 }
 
 impl ObligationAction {
@@ -496,7 +496,7 @@ impl ObligationAction {
                 Self::UpdateStatus => {
                     ActionDescription::new(variant, &[PERMISSION_SET_CREDIT_WRITER])
                 }
-                Self::RecordPaymentAllocation => {
+                Self::RecordAllocation => {
                     ActionDescription::new(variant, &[PERMISSION_SET_CREDIT_WRITER])
                 }
             };

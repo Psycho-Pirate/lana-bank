@@ -19,8 +19,8 @@ mod jobs;
 pub mod ledger;
 mod liquidation_process;
 mod obligation;
+mod obligation_installment;
 mod payment;
-mod payment_allocation;
 mod primitives;
 mod processes;
 mod publisher;
@@ -60,8 +60,8 @@ pub use interest_accrual_cycle::*;
 use jobs::*;
 pub use ledger::*;
 pub use obligation::{error::*, obligation_cursor::*, *};
+pub use obligation_installment::*;
 pub use payment::*;
-pub use payment_allocation::*;
 pub use primitives::*;
 use processes::activate_credit_facility::*;
 pub use processes::approve_credit_facility::*;
@@ -77,7 +77,7 @@ pub mod event_schema {
         TermsTemplateEvent, collateral::CollateralEvent, credit_facility::CreditFacilityEvent,
         disbursal::DisbursalEvent, interest_accrual_cycle::InterestAccrualCycleEvent,
         liquidation_process::LiquidationProcessEvent, obligation::ObligationEvent,
-        payment::PaymentEvent, payment_allocation::PaymentAllocationEvent,
+        obligation_installment::ObligationInstallmentEvent, payment::PaymentEvent,
     };
 }
 
@@ -92,7 +92,7 @@ where
     authz: Perms,
     facilities: CreditFacilities<Perms, E>,
     disbursals: Disbursals<Perms, E>,
-    payments: Payments<Perms, E>,
+    payments: Payments<Perms>,
     history_repo: HistoryRepo,
     repayment_plan_repo: RepaymentPlanRepo,
     governance: Governance<Perms, E>,
@@ -178,7 +178,7 @@ where
     ) -> Result<Self, CoreCreditError> {
         let publisher = CreditFacilityPublisher::new(outbox);
         let ledger = CreditLedger::init(cala, journal_id).await?;
-        let obligations = Obligations::new(pool, authz, cala, jobs, &publisher);
+        let obligations = Obligations::new(pool, authz, &ledger, jobs, &publisher);
         let credit_facilities = CreditFacilities::new(
             pool,
             authz,
@@ -191,7 +191,7 @@ where
         .await;
         let collaterals = Collaterals::new(pool, authz, &publisher, &ledger);
         let disbursals = Disbursals::new(pool, authz, &publisher, &obligations, governance).await;
-        let payments = Payments::new(pool, authz, &obligations, &publisher);
+        let payments = Payments::new(pool, authz);
         let history_repo = HistoryRepo::new(pool);
         let repayment_plan_repo = RepaymentPlanRepo::new(pool);
         let approve_disbursal =
@@ -353,7 +353,7 @@ where
         &self.facilities
     }
 
-    pub fn payments(&self) -> &Payments<Perms, E> {
+    pub fn payments(&self) -> &Payments<Perms> {
         &self.payments
     }
 
@@ -395,8 +395,8 @@ where
             customer_id,
             &self.authz,
             &self.facilities,
+            &self.obligations,
             &self.disbursals,
-            &self.payments,
             &self.history_repo,
             &self.repayment_plan_repo,
             &self.ledger,
@@ -733,12 +733,7 @@ where
             .await?)
     }
 
-    #[instrument(
-        name = "credit.record_payment",
-        skip(self),
-        fields(amount_allocated),
-        err
-    )]
+    #[instrument(name = "credit.record_payment", skip(self), err)]
     #[es_entity::retry_on_concurrent_modification(any_error = true)]
     pub async fn record_payment(
         &self,
@@ -765,19 +760,20 @@ where
 
         let mut db = self.facilities.begin_op().await?;
 
-        let allocations = self
+        let payment = self
             .payments
-            .record_in_op(&mut db, audit_info, credit_facility_id, amount, effective)
+            .record_in_op(&mut db, credit_facility_id, amount, &audit_info)
             .await?;
 
-        let amount_allocated = allocations.iter().fold(UsdCents::ZERO, |c, a| c + a.amount);
-        tracing::Span::current().record(
-            "amount_allocated",
-            tracing::field::display(amount_allocated),
-        );
-
-        self.ledger
-            .record_obligation_repayments(db, allocations)
+        self.obligations
+            .apply_installment_in_op(
+                db,
+                credit_facility_id,
+                payment.id,
+                amount,
+                effective.into(),
+                &audit_info,
+            )
             .await?;
 
         Ok(credit_facility)

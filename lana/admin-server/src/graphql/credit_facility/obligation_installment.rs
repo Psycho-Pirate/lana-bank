@@ -2,34 +2,34 @@ use async_graphql::*;
 
 use crate::primitives::*;
 
-pub use lana_app::credit::PaymentAllocation as DomainPaymentAllocation;
+pub use lana_app::credit::ObligationInstallment as DomainObligationInstallment;
 
 #[derive(SimpleObject, Clone)]
 #[graphql(complex)]
-pub struct CreditFacilityPaymentAllocation {
+pub struct CreditFacilityObligationInstallment {
     id: ID,
-    payment_allocation_id: UUID,
+    obligation_installment_id: UUID,
     amount: UsdCents,
     created_at: Timestamp,
 
     #[graphql(skip)]
-    pub(crate) entity: Arc<DomainPaymentAllocation>,
+    pub(crate) entity: Arc<DomainObligationInstallment>,
 }
 
-impl From<DomainPaymentAllocation> for CreditFacilityPaymentAllocation {
-    fn from(payment_allocation: DomainPaymentAllocation) -> Self {
+impl From<DomainObligationInstallment> for CreditFacilityObligationInstallment {
+    fn from(installment: DomainObligationInstallment) -> Self {
         Self {
-            id: payment_allocation.id.to_global_id(),
-            payment_allocation_id: UUID::from(payment_allocation.id),
-            amount: payment_allocation.amount,
-            created_at: payment_allocation.created_at().into(),
-            entity: Arc::new(payment_allocation),
+            id: installment.id.to_global_id(),
+            obligation_installment_id: UUID::from(installment.id),
+            amount: installment.amount,
+            created_at: installment.created_at().into(),
+            entity: Arc::new(installment),
         }
     }
 }
 
 #[ComplexObject]
-impl CreditFacilityPaymentAllocation {
+impl CreditFacilityObligationInstallment {
     async fn credit_facility(
         &self,
         ctx: &Context<'_>,

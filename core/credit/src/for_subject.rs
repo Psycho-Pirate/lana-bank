@@ -15,8 +15,8 @@ where
     subject: &'a <<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
     authz: &'a Perms,
     credit_facilities: &'a CreditFacilities<Perms, E>,
+    obligations: &'a Obligations<Perms, E>,
     disbursals: &'a Disbursals<Perms, E>,
-    payments: &'a Payments<Perms, E>,
     histories: &'a HistoryRepo,
     repayment_plans: &'a RepaymentPlanRepo,
     ledger: &'a CreditLedger,
@@ -37,8 +37,8 @@ where
         customer_id: CustomerId,
         authz: &'a Perms,
         credit_facilities: &'a CreditFacilities<Perms, E>,
+        obligations: &'a Obligations<Perms, E>,
         disbursals: &'a Disbursals<Perms, E>,
-        payments: &'a Payments<Perms, E>,
         history: &'a HistoryRepo,
         repayment_plans: &'a RepaymentPlanRepo,
         ledger: &'a CreditLedger,
@@ -48,8 +48,8 @@ where
             subject,
             authz,
             credit_facilities,
+            obligations,
             disbursals,
-            payments,
             histories: history,
             repayment_plans,
             ledger,
@@ -210,18 +210,18 @@ where
         Ok(disbursal)
     }
 
-    pub async fn find_payment_allocation_by_id(
+    pub async fn find_obligation_installment_by_id(
         &self,
-        payment_id: impl Into<PaymentAllocationId> + std::fmt::Debug,
-    ) -> Result<PaymentAllocation, CoreCreditError> {
-        let payment_allocation = self
-            .payments
-            .find_allocation_by_id_without_audit(payment_id.into())
+        payment_id: impl Into<ObligationInstallmentId> + std::fmt::Debug,
+    ) -> Result<ObligationInstallment, CoreCreditError> {
+        let allocation = self
+            .obligations
+            .find_installment_by_id_without_audit(payment_id.into())
             .await?;
 
         let credit_facility = self
             .credit_facilities
-            .find_by_id_without_audit(payment_allocation.credit_facility_id)
+            .find_by_id_without_audit(allocation.credit_facility_id)
             .await?;
 
         self.ensure_credit_facility_access(
@@ -231,6 +231,6 @@ where
         )
         .await?;
 
-        Ok(payment_allocation)
+        Ok(allocation)
     }
 }

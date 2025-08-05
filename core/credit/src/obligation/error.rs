@@ -18,8 +18,14 @@ pub enum ObligationError {
     InvalidStatusTransitionToOverdue,
     #[error("ObligationError - InvalidStatusTransitionToDefaulted")]
     InvalidStatusTransitionToDefaulted,
+    #[error("ObligationError - ObligationInstallmentError: {0}")]
+    ObligationInstallmentError(
+        #[from] crate::obligation_installment::error::ObligationInstallmentError,
+    ),
     #[error("ObligationError - PaymentAmountGreaterThanOutstandingObligations")]
     PaymentAmountGreaterThanOutstandingObligations,
+    #[error("CoreCreditError - ObligationError: {0}")]
+    CreditLedgerError(#[from] crate::ledger::error::CreditLedgerError),
 }
 
 es_entity::from_es_entity_error!(ObligationError);

@@ -7,19 +7,17 @@ use tracing::{Span, instrument};
 
 use audit::{AuditInfo, AuditSvc};
 use authz::PermissionCheck;
-use cala_ledger::CalaLedger;
 use es_entity::Idempotent;
 use job::{JobId, Jobs};
 use outbox::OutboxEventMarker;
 
 use crate::{
+    CreditLedger, ObligationInstallment, ObligationInstallmentId, ObligationInstallmentRepo,
     event::CoreCreditEvent,
     jobs::obligation_due,
     liquidation_process::{LiquidationProcess, LiquidationProcessRepo},
-    payment_allocation::NewPaymentAllocation,
     primitives::{
-        CoreCreditAction, CoreCreditObject, CreditFacilityId, ObligationId, ObligationType,
-        PaymentId, UsdCents,
+        CoreCreditAction, CoreCreditObject, CreditFacilityId, ObligationId, PaymentId, UsdCents,
     },
     publisher::CreditFacilityPublisher,
 };
@@ -42,6 +40,8 @@ where
     authz: Perms,
     repo: ObligationRepo<E>,
     liquidation_process_repo: LiquidationProcessRepo<E>,
+    installment_repo: ObligationInstallmentRepo<E>,
+    ledger: CreditLedger,
     jobs: Jobs,
 }
 
@@ -55,6 +55,8 @@ where
             authz: self.authz.clone(),
             repo: self.repo.clone(),
             liquidation_process_repo: self.liquidation_process_repo.clone(),
+            installment_repo: self.installment_repo.clone(),
+            ledger: self.ledger.clone(),
             jobs: self.jobs.clone(),
         }
     }
@@ -70,17 +72,20 @@ where
     pub(crate) fn new(
         pool: &sqlx::PgPool,
         authz: &Perms,
-        _cala: &CalaLedger,
+        ledger: &CreditLedger,
         jobs: &Jobs,
         publisher: &CreditFacilityPublisher<E>,
     ) -> Self {
         let obligation_repo = ObligationRepo::new(pool, publisher);
         let liquidation_process_repo = LiquidationProcessRepo::new(pool, publisher);
+        let obligation_installment_repo = ObligationInstallmentRepo::new(pool, publisher);
         Self {
             authz: authz.clone(),
             repo: obligation_repo,
             liquidation_process_repo,
             jobs: jobs.clone(),
+            ledger: ledger.clone(),
+            installment_repo: obligation_installment_repo,
         }
     }
 
@@ -247,19 +252,19 @@ where
     }
 
     #[instrument(
-        name = "credit.obligation.allocate_payment_in_op",
+        name = "credit.obligation.allocate_in_op",
         skip(self, db),
-        fields(n_new_allocations, n_facility_obligations)
+        fields(n_new_installments, n_facility_obligations, amount_allocated)
     )]
-    pub async fn allocate_payment_in_op(
+    pub async fn apply_installment_in_op(
         &self,
-        db: &mut es_entity::DbOp<'_>,
+        mut db: es_entity::DbOp<'_>,
         credit_facility_id: CreditFacilityId,
         payment_id: PaymentId,
         amount: UsdCents,
         effective: chrono::NaiveDate,
         audit_info: &AuditInfo,
-    ) -> Result<PaymentAllocationResult, ObligationError> {
+    ) -> Result<(), ObligationError> {
         let span = Span::current();
         let mut obligations = self.facility_obligations(credit_facility_id).await?;
         span.record("n_facility_obligations", obligations.len());
@@ -267,22 +272,76 @@ where
         obligations.sort();
 
         let mut remaining = amount;
-        let mut new_allocations = Vec::new();
+        let mut new_installments = Vec::new();
         for obligation in obligations.iter_mut() {
-            if let es_entity::Idempotent::Executed(new_allocation) =
-                obligation.allocate_payment(remaining, payment_id, effective, audit_info)
+            if let es_entity::Idempotent::Executed(new_installment) =
+                obligation.apply_installment(remaining, payment_id, effective, audit_info)
             {
-                self.repo.update_in_op(db, obligation).await?;
-                remaining -= new_allocation.amount;
-                new_allocations.push(new_allocation);
+                self.repo.update_in_op(&mut db, obligation).await?;
+                remaining -= new_installment.amount;
+                new_installments.push(new_installment);
                 if remaining == UsdCents::ZERO {
                     break;
                 }
             }
         }
 
-        span.record("n_new_allocations", new_allocations.len());
-        Ok(PaymentAllocationResult::new(new_allocations))
+        span.record("n_new_installments", new_installments.len());
+
+        let installments = self
+            .installment_repo
+            .create_all_in_op(&mut db, new_installments)
+            .await?;
+
+        let amount_allocated = installments
+            .iter()
+            .fold(UsdCents::ZERO, |c, a| c + a.amount);
+        tracing::Span::current().record(
+            "amount_allocated",
+            tracing::field::display(amount_allocated),
+        );
+
+        self.ledger
+            .record_obligation_installments(db, installments)
+            .await?;
+
+        Ok(())
+    }
+
+    pub(super) async fn find_installment_by_id_without_audit(
+        &self,
+        installment_id: impl Into<ObligationInstallmentId> + std::fmt::Debug,
+    ) -> Result<ObligationInstallment, ObligationError> {
+        Ok(self
+            .installment_repo
+            .find_by_id(installment_id.into())
+            .await?)
+    }
+
+    #[instrument(
+        name = "core_credit.obligation.find_installment_by_id",
+        skip(self),
+        err
+    )]
+    pub async fn find_installment_by_id(
+        &self,
+        sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
+        installment_id: impl Into<ObligationInstallmentId> + std::fmt::Debug,
+    ) -> Result<ObligationInstallment, ObligationError> {
+        let installment = self
+            .installment_repo
+            .find_by_id(installment_id.into())
+            .await?;
+
+        self.authz
+            .enforce_permission(
+                sub,
+                CoreCreditObject::credit_facility(installment.credit_facility_id),
+                CoreCreditAction::CREDIT_FACILITY_READ,
+            )
+            .await?;
+
+        Ok(installment)
     }
 
     pub async fn check_facility_obligations_status_updated(
@@ -325,47 +384,5 @@ where
         }
 
         Ok(obligations)
-    }
-}
-
-pub struct PaymentAllocationResult {
-    pub allocations: Vec<NewPaymentAllocation>,
-}
-
-impl PaymentAllocationResult {
-    fn new(allocations: Vec<NewPaymentAllocation>) -> Self {
-        Self { allocations }
-    }
-
-    pub fn disbursed_amount(&self) -> UsdCents {
-        self.allocations
-            .iter()
-            .fold(UsdCents::from(0), |mut total, allocation| {
-                if let NewPaymentAllocation {
-                    amount,
-                    obligation_type: ObligationType::Disbursal,
-                    ..
-                } = allocation
-                {
-                    total += *amount;
-                }
-                total
-            })
-    }
-
-    pub fn interest_amount(&self) -> UsdCents {
-        self.allocations
-            .iter()
-            .fold(UsdCents::from(0), |mut total, allocation| {
-                if let NewPaymentAllocation {
-                    amount,
-                    obligation_type: ObligationType::Interest,
-                    ..
-                } = allocation
-                {
-                    total += *amount;
-                }
-                total
-            })
     }
 }

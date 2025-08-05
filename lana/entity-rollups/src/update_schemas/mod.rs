@@ -7,7 +7,7 @@ use core_access::event_schema::{PermissionSetEvent, RoleEvent, UserEvent};
 use core_accounting::event_schema::{ChartEvent, ManualTransactionEvent};
 use core_credit::event_schema::{
     CollateralEvent, CreditFacilityEvent, DisbursalEvent, InterestAccrualCycleEvent,
-    LiquidationProcessEvent, ObligationEvent, PaymentAllocationEvent, PaymentEvent,
+    LiquidationProcessEvent, ObligationEvent, ObligationInstallmentEvent, PaymentEvent,
     TermsTemplateEvent,
 };
 use core_custody::event_schema::CustodianEvent;
@@ -311,20 +311,14 @@ pub fn update_schemas(
                         "DueRecorded".to_string(),
                         "OverdueRecorded".to_string(),
                         "DefaultedRecorded".to_string(),
-                        "PaymentAllocated".to_string(),
+                        "InstallmentApplied".to_string(),
                     ],
                     remove_events: vec![],
                 },
                 CollectionRollup {
-                    column_name: "payment_ids",
-                    values: "payment_id",
-                    add_events: vec!["PaymentAllocated".to_string()],
-                    remove_events: vec![],
-                },
-                CollectionRollup {
-                    column_name: "payment_allocation_ids",
-                    values: "payment_allocation_id",
-                    add_events: vec!["PaymentAllocated".to_string()],
+                    column_name: "obligation_installment_ids",
+                    values: "obligation_installment_id",
+                    add_events: vec!["Allocated".to_string()],
                     remove_events: vec![],
                 },
             ],
@@ -340,14 +334,16 @@ pub fn update_schemas(
         SchemaInfo {
             name: "PaymentEvent",
             filename: "payment_event_schema.json",
-            toggle_events: vec!["PaymentAllocated"],
+            toggle_events: vec![],
             generate_schema: || serde_json::to_value(schema_for!(PaymentEvent)).unwrap(),
             ..Default::default()
         },
         SchemaInfo {
-            name: "PaymentAllocationEvent",
-            filename: "payment_allocation_event_schema.json",
-            generate_schema: || serde_json::to_value(schema_for!(PaymentAllocationEvent)).unwrap(),
+            name: "ObligationInstallmentEvent",
+            filename: "obligation_installment_event_schema.json",
+            generate_schema: || {
+                serde_json::to_value(schema_for!(ObligationInstallmentEvent)).unwrap()
+            },
             ..Default::default()
         },
         SchemaInfo {
