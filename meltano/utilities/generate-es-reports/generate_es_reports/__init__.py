@@ -4,14 +4,16 @@ import csv
 from pathlib import Path
 import logging, logging.config
 from abc import ABC, abstractmethod
+from typing import Union
 
 import yaml
 from google.cloud import bigquery, storage
 from dicttoxml import dicttoxml
 from google.oauth2 import service_account
+from xmlschema import XMLSchema
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] - %(message)s",
     handlers=[logging.StreamHandler()],
 )
@@ -37,6 +39,8 @@ class Constants:
     GOOGLE_APPLICATION_CREDENTIALS_ENVVAR_KEY = "GOOGLE_APPLICATION_CREDENTIALS"
     AIRFLOW_CTX_DAG_RUN_ID_ENVVAR_KEY = "AIRFLOW_CTX_DAG_RUN_ID"
     USE_LOCAL_FS_ENVVAR_KEY = "USE_LOCAL_FS"
+
+    DEFAULT_XML_SCHEMAS_PATH = Path(__file__).resolve().parent / "schemas"
 
 
 class StorableReportOutput:
@@ -70,8 +74,8 @@ class XMLFileOutputConfig(BaseFileOutputConfig):
     file_extension = "xml"
     content_type = "text/xml"
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, xml_schema: Union[XMLSchema, None] = None) -> None:
+        self.xml_schema = xml_schema
 
     def rows_to_report_output(self, rows) -> StorableReportOutput:
         field_names = [field.name for field in rows.schema]
@@ -84,9 +88,20 @@ class XMLFileOutputConfig(BaseFileOutputConfig):
         output.write(xml_string)
         report_content = output.getvalue()
 
+        if self.xml_schema is not None:
+            is_xml_valid = self.xml_schema.is_valid(source=report_content)
+            if not is_xml_valid:
+                logger.warning(f"Schema validation for report failed. Listing errors.")
+                for err in self.xml_schema.iter_errors(report_content):
+                    logger.debug(f"Path: {err.path}, Reason: {err.reason}")
+                    logger.debug(f"  Source: {err.source}")
+
         return StorableReportOutput(
             report_content=report_content, report_content_type=self.content_type
         )
+
+    def set_validation_schema(self, xml_schema: XMLSchema) -> None:
+        self.xml_schema = xml_schema
 
 
 class CSVFileOutputConfig(BaseFileOutputConfig):
@@ -149,6 +164,22 @@ class TXTFileOutputConfig(BaseFileOutputConfig):
         )
 
 
+class XMLSchemaRepository:
+    """Provides access to the xsd schemas in the schemas folder.
+    """
+
+    xml_schema_extension = ".xsd"
+
+    def __init__(self, schema_folder_path: Path = Constants.DEFAULT_XML_SCHEMAS_PATH):
+        self.schema_folder_path = schema_folder_path
+
+    def get_schema(self, schema_id: str) -> XMLSchema:
+        full_schema_file_path = self.schema_folder_path / (
+            schema_id + self.xml_schema_extension
+        )
+        return XMLSchema(full_schema_file_path)
+
+
 class ReportJobDefinition:
     """
     Defines a report that must be fetched and converted into
@@ -190,11 +221,21 @@ def load_report_jobs_from_yaml(yaml_path: Path) -> tuple[ReportJobDefinition, ..
         "txt": TXTFileOutputConfig,
     }
 
+    xml_schema_repository = XMLSchemaRepository()
+
     report_jobs = []
     for report_job in data["report_jobs"]:
         output_configs = []
         for output in report_job["outputs"]:
+
             output_config = str_to_type_mapping[output["type"].lower()]()
+            validation_schema_specified = output.get("validation_schema_id", False)
+            if validation_schema_specified:
+                output_config.set_validation_schema(
+                    xml_schema=xml_schema_repository.get_schema(
+                        schema_id=output["validation_schema_id"]
+                    )
+                )
             output_configs.append(output_config)
         output_configs = tuple(output_configs)
 
