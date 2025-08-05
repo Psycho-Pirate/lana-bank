@@ -3,6 +3,8 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+es_entity::entity_id!(AuditId);
+
 #[derive(sqlx::Type, Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-schema", derive(JsonSchema))]
 #[sqlx(transparent)]
@@ -23,6 +25,15 @@ impl From<i64> for AuditEntryId {
 impl From<AuditEntryId> for i64 {
     fn from(value: AuditEntryId) -> i64 {
         value.0
+    }
+}
+
+impl std::str::FromStr for AuditEntryId {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let id = s.parse::<i64>()?;
+        Ok(AuditEntryId(id))
     }
 }
 
