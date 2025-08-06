@@ -149,10 +149,7 @@ impl CreditFacility {
         Ok(process)
     }
 
-    async fn subject_can_update_collateral(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<bool> {
+    async fn user_can_update_collateral(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         let (app, sub) = crate::app_and_sub_from_ctx!(ctx);
         Ok(app
             .credit()
@@ -161,10 +158,7 @@ impl CreditFacility {
             .is_ok())
     }
 
-    async fn subject_can_initiate_disbursal(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<bool> {
+    async fn user_can_initiate_disbursal(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         let (app, sub) = crate::app_and_sub_from_ctx!(ctx);
         Ok(app
             .credit()
@@ -173,7 +167,7 @@ impl CreditFacility {
             .is_ok())
     }
 
-    async fn subject_can_record_payment(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+    async fn user_can_record_payment(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         let (app, sub) = crate::app_and_sub_from_ctx!(ctx);
         Ok(app
             .credit()
@@ -182,7 +176,7 @@ impl CreditFacility {
             .is_ok())
     }
 
-    async fn subject_can_complete(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+    async fn user_can_complete(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         let (app, sub) = crate::app_and_sub_from_ctx!(ctx);
         Ok(app.credit().subject_can_complete(sub, false).await.is_ok())
     }

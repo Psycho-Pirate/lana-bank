@@ -119,7 +119,7 @@ impl Customer {
         Ok(documents.into_iter().map(CustomerDocument::from).collect())
     }
 
-    async fn subject_can_create_credit_facility(
+    async fn user_can_create_credit_facility(
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<bool> {
