@@ -1,5 +1,13 @@
 {
   "$defs": {
+    "AccountStatus": {
+      "enum": [
+        "inactive",
+        "active",
+        "escheatment-candidate"
+      ],
+      "type": "string"
+    },
     "AuditEntryId": {
       "format": "int64",
       "type": "integer"

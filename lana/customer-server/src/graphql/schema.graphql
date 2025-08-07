@@ -1,3 +1,9 @@
+enum AccountStatus {
+	INACTIVE
+	ACTIVE
+	ESCHEATMENT_CANDIDATE
+}
+
 scalar AnnualRatePct
 
 scalar CVLPct
