@@ -60,6 +60,20 @@ where
     ) -> Result<(), CustomerError> {
         self.publisher.publish(db, entity, new_events).await
     }
+
+    pub async fn list_all_customers(&self) -> Result<Vec<Customer>, CustomerError> {
+        let mut customers = Vec::new();
+        let mut next = Some(PaginatedQueryArgs::default());
+
+        while let Some(query) = next.take() {
+            let mut ret = self.list_by_id(query, Default::default()).await?;
+
+            customers.append(&mut ret.entities);
+            next = ret.into_next_query();
+        }
+
+        Ok(customers)
+    }
 }
 
 mod account_status_sqlx {

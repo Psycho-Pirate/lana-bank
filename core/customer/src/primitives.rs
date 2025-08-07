@@ -42,6 +42,7 @@ pub enum CustomerStatus {
     #[default]
     Inactive,
     Active,
+    EscheatmentCandidate,
 }
 
 #[derive(Debug, Deserialize, Clone, Copy, Serialize, Eq, PartialEq)]

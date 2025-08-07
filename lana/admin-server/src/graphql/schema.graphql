@@ -1,5 +1,11 @@
 scalar AccountCode
 
+enum AccountStatus {
+	INACTIVE
+	ACTIVE
+	ESCHEATMENT_CANDIDATE
+}
+
 type AccountingCsvDocument {
 	id: ID!
 	documentId: UUID!
