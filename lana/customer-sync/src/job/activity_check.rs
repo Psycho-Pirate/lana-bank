@@ -208,49 +208,72 @@ where
         &self,
         customer_id: core_customer::CustomerId,
     ) -> Result<Option<DateTime<Utc>>, Box<dyn std::error::Error>> {
-        let deposit_accounts = self.deposit
-            .list_accounts_by_created_at_for_account_holder(
-                &<<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject as SystemSubject>::system(),
-                customer_id,
-                es_entity::PaginatedQueryArgs { first: 1, after: None },
-                es_entity::ListDirection::Descending,
-            )
-            .await?;
+        let mut latest_date: Option<DateTime<Utc>> = None;
+        let mut next = Some(es_entity::PaginatedQueryArgs {
+            first: 100,
+            after: None,
+        });
 
-        if deposit_accounts.entities.is_empty() {
-            return Ok(None);
+        while let Some(query) = next.take() {
+            let deposit_accounts = self.deposit
+                .list_accounts_by_created_at_for_account_holder(
+                    &<<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject as SystemSubject>::system(),
+                    customer_id,
+                    query,
+                    es_entity::ListDirection::Descending,
+                )
+                .await?;
+
+            if deposit_accounts.entities.is_empty() {
+                break;
+            }
+
+            for deposit_account in &deposit_accounts.entities {
+                let history = self.deposit
+                    .account_history(
+                        &<<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject as SystemSubject>::system(),
+                        deposit_account.id,
+                        es_entity::PaginatedQueryArgs { first: 1, after: None },
+                    )
+                    .await?;
+
+                if let Some(entry) = history.entities.first() {
+                    let transaction_date = match entry {
+                        core_deposit::DepositAccountHistoryEntry::Deposit(entry) => {
+                            entry.recorded_at
+                        }
+                        core_deposit::DepositAccountHistoryEntry::Withdrawal(entry) => {
+                            entry.recorded_at
+                        }
+                        core_deposit::DepositAccountHistoryEntry::CancelledWithdrawal(entry) => {
+                            entry.recorded_at
+                        }
+                        core_deposit::DepositAccountHistoryEntry::Disbursal(entry) => {
+                            entry.recorded_at
+                        }
+                        core_deposit::DepositAccountHistoryEntry::Payment(entry) => {
+                            entry.recorded_at
+                        }
+                        core_deposit::DepositAccountHistoryEntry::Unknown(entry) => {
+                            entry.recorded_at
+                        }
+                        core_deposit::DepositAccountHistoryEntry::Ignored => continue,
+                    };
+
+                    latest_date = match latest_date {
+                        Some(current_latest) if transaction_date > current_latest => {
+                            Some(transaction_date)
+                        }
+                        Some(current_latest) => Some(current_latest),
+                        None => Some(transaction_date),
+                    };
+                }
+            }
+
+            next = deposit_accounts.into_next_query();
         }
 
-        let deposit_account = &deposit_accounts.entities[0];
-
-        let history = self.deposit
-            .account_history(
-                &<<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject as SystemSubject>::system(),
-                deposit_account.id,
-                es_entity::PaginatedQueryArgs { first: 1, after: None },
-            )
-            .await?;
-
-        if history.entities.is_empty() {
-            return Ok(None);
-        }
-
-        let last_entry = &history.entities[0];
-        let last_transaction_date = match last_entry {
-            core_deposit::DepositAccountHistoryEntry::Deposit(entry) => entry.recorded_at,
-            core_deposit::DepositAccountHistoryEntry::Withdrawal(entry) => entry.recorded_at,
-            core_deposit::DepositAccountHistoryEntry::CancelledWithdrawal(entry) => {
-                entry.recorded_at
-            }
-            core_deposit::DepositAccountHistoryEntry::Disbursal(entry) => entry.recorded_at,
-            core_deposit::DepositAccountHistoryEntry::Payment(entry) => entry.recorded_at,
-            core_deposit::DepositAccountHistoryEntry::Unknown(entry) => entry.recorded_at,
-            core_deposit::DepositAccountHistoryEntry::Ignored => {
-                return Ok(None);
-            }
-        };
-
-        Ok(Some(last_transaction_date))
+        Ok(latest_date)
     }
 }
 
