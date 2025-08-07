@@ -150,7 +150,7 @@ impl Customer {
         self.update_account_status(AccountStatus::Inactive, audit_info)
     }
 
-    fn update_account_status(
+    pub fn update_account_status(
         &mut self,
         status: AccountStatus,
         audit_info: AuditInfo,

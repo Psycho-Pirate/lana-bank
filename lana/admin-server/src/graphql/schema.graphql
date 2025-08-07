@@ -3,6 +3,7 @@ scalar AccountCode
 enum AccountStatus {
 	INACTIVE
 	ACTIVE
+	ESCHEATMENT_CANDIDATE
 }
 
 type AccountingCsvDocument {

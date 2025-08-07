@@ -43,6 +43,7 @@ pub enum AccountStatus {
     #[default]
     Inactive,
     Active,
+    EscheatmentCandidate,
 }
 
 #[derive(Debug, Deserialize, Clone, Copy, Serialize, Eq, PartialEq)]

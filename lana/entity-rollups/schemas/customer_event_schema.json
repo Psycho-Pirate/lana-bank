@@ -3,7 +3,8 @@
     "AccountStatus": {
       "enum": [
         "inactive",
-        "active"
+        "active",
+        "escheatment-candidate"
       ],
       "type": "string"
     },
