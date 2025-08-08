@@ -566,11 +566,11 @@ where
         self.repo.list_all_customers().await
     }
 
-    #[instrument(name = "customer.update_account_status_from_system", skip(self), err)]
-    pub async fn update_account_status_from_system(
+    #[instrument(name = "customer.update_account_activity_from_system", skip(self), err)]
+    pub async fn update_account_activity_from_system(
         &self,
         customer_id: CustomerId,
-        status: AccountStatus,
+        activity: AccountActivity,
     ) -> Result<Customer, CustomerError> {
         let mut customer = self.repo.find_by_id(customer_id).await?;
 
@@ -583,7 +583,7 @@ where
             )
             .await?;
 
-        let _ = customer.update_account_status(status, audit_info);
+        let _ = customer.update_account_activity(activity, audit_info);
         self.repo.update(&mut customer).await?;
 
         Ok(customer)

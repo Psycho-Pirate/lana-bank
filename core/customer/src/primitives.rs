@@ -42,7 +42,29 @@ pub enum CustomerStatus {
     #[default]
     Inactive,
     Active,
-    EscheatmentCandidate,
+}
+
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    strum::Display,
+    strum::EnumString,
+    Default,
+)]
+#[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
+#[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum AccountActivity {
+    #[default]
+    Disabled,
+    Enabled,
+    Suspended,
 }
 
 #[derive(Debug, Deserialize, Clone, Copy, Serialize, Eq, PartialEq)]
