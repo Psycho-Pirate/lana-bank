@@ -29,7 +29,6 @@ export type Scalars = {
 
 export enum AccountStatus {
   Active = 'ACTIVE',
-  EscheatmentCandidate = 'ESCHEATMENT_CANDIDATE',
   Inactive = 'INACTIVE'
 }
 
