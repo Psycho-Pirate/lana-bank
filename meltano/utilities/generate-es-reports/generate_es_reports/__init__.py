@@ -8,9 +8,9 @@ from typing import Union
 
 import yaml
 from google.cloud import bigquery, storage
-from dicttoxml import dicttoxml
 from google.oauth2 import service_account
 from xmlschema import XMLSchema
+from xml.etree import ElementTree
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -76,32 +76,71 @@ class XMLFileOutputConfig(BaseFileOutputConfig):
 
     def __init__(self, xml_schema: Union[XMLSchema, None] = None) -> None:
         self.xml_schema = xml_schema
+        self.target_namespace = self.xml_schema.target_namespace
+        self.root_element_tag = next(iter(self.xml_schema.elements), None)
+        self.sequence_elements_tag = self._extract_sequence_elements_tag()
 
     def rows_to_report_output(self, rows) -> StorableReportOutput:
         field_names = [field.name for field in rows.schema]
         rows_data = [{name: row[name] for name in field_names} for row in rows]
 
-        xml_string = dicttoxml(rows_data, custom_root="rows", attr_type=False).decode(
-            "utf-8"
+        xml_root_element = ElementTree.Element(
+            f"{{{self.target_namespace}}}" + f"{self.root_element_tag}"
         )
+
+        for row in rows_data:
+            sequence_level_element = ElementTree.SubElement(
+                xml_root_element,
+                f"{{{self.target_namespace}}}" + f"{self.sequence_elements_tag}",
+            )
+            for field, value in row.items():
+
+                new_field_element = ElementTree.SubElement(
+                    sequence_level_element,
+                    f"{{{self.target_namespace}}}" + f"{field}",
+                )
+                new_field_element.text = value
+
+        xml_string = ElementTree.tostring(xml_root_element, encoding="unicode")
+
         output = io.StringIO()
         output.write(xml_string)
         report_content = output.getvalue()
 
-        if self.xml_schema is not None:
-            is_xml_valid = self.xml_schema.is_valid(source=report_content)
-            if not is_xml_valid:
-                logger.warning(f"Schema validation for report failed. Listing errors.")
-                for err in self.xml_schema.iter_errors(report_content):
-                    logger.debug(f"Path: {err.path}, Reason: {err.reason}")
-                    logger.debug(f"  Source: {err.source}")
+        report_has_content = len(rows_data) > 0
+        is_xml_valid = self.xml_schema.is_valid(source=report_content)
+        if report_has_content and not is_xml_valid:
+            logger.warning(f"Schema validation for report failed. Listing errors.")
+            for err in self.xml_schema.iter_errors(report_content):
+                logger.debug(f"Path: {err.path}, Reason: {err.reason}")
+                logger.debug(f"  Source: {err.source}")
 
         return StorableReportOutput(
             report_content=report_content, report_content_type=self.content_type
         )
 
-    def set_validation_schema(self, xml_schema: XMLSchema) -> None:
-        self.xml_schema = xml_schema
+    def _extract_sequence_elements_tag(self) -> str:
+        """Extract the tag of the sequence elements of the schema.
+
+        This makes a strong assumption that the XSD follows the common
+        structure of SSF reports: one root element followed by a sequence
+        of children elements, all within the same namespace.
+
+        This will 100% break on XSD that follow other patterns.
+
+        Returns:
+            str: the tag for the sequence elements of this XSD.
+        """
+        elem = self.xml_schema.elements[self.root_element_tag]
+        model = elem.type.content
+
+        first_child = next(model.iter_elements(), None)
+
+        # Strip namespace if present
+        qname = first_child.name
+        child_name = qname.split("}", 1)[-1] if qname.startswith("{") else qname
+
+        return child_name
 
 
 class CSVFileOutputConfig(BaseFileOutputConfig):
@@ -165,8 +204,7 @@ class TXTFileOutputConfig(BaseFileOutputConfig):
 
 
 class XMLSchemaRepository:
-    """Provides access to the xsd schemas in the schemas folder.
-    """
+    """Provides access to the xsd schemas in the schemas folder."""
 
     xml_schema_extension = ".xsd"
 
@@ -227,16 +265,18 @@ def load_report_jobs_from_yaml(yaml_path: Path) -> tuple[ReportJobDefinition, ..
     for report_job in data["report_jobs"]:
         output_configs = []
         for output in report_job["outputs"]:
-
-            output_config = str_to_type_mapping[output["type"].lower()]()
-            validation_schema_specified = output.get("validation_schema_id", False)
-            if validation_schema_specified:
-                output_config.set_validation_schema(
+            if output["type"] == "xml":
+                output_config = XMLFileOutputConfig(
                     xml_schema=xml_schema_repository.get_schema(
                         schema_id=output["validation_schema_id"]
                     )
                 )
+                output_configs.append(output_config)
+                continue
+
+            output_config = str_to_type_mapping[output["type"].lower()]()
             output_configs.append(output_config)
+
         output_configs = tuple(output_configs)
 
         report_jobs.append(
