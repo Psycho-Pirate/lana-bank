@@ -33,7 +33,7 @@ impl JobTracker {
         self.running_jobs.fetch_add(1, Ordering::SeqCst);
     }
 
-    pub fn notified(&self) -> tokio::sync::futures::Notified {
+    pub fn notified(&self) -> tokio::sync::futures::Notified<'_> {
         self.notify.notified()
     }
 
