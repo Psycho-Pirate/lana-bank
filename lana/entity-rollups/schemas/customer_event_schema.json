@@ -1,10 +1,17 @@
 {
   "$defs": {
+    "AccountActivity": {
+      "enum": [
+        "disabled",
+        "enabled",
+        "suspended"
+      ],
+      "type": "string"
+    },
     "AccountStatus": {
       "enum": [
         "inactive",
-        "active",
-        "escheatment-candidate"
+        "active"
       ],
       "type": "string"
     },
@@ -52,6 +59,9 @@
   "oneOf": [
     {
       "properties": {
+        "activity": {
+          "$ref": "#/$defs/AccountActivity"
+        },
         "audit_info": {
           "$ref": "#/$defs/AuditInfo"
         },
@@ -82,6 +92,7 @@
         "email",
         "telegram_id",
         "customer_type",
+        "activity",
         "public_id",
         "audit_info"
       ],
@@ -224,6 +235,26 @@
       "required": [
         "type",
         "email",
+        "audit_info"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "activity": {
+          "$ref": "#/$defs/AccountActivity"
+        },
+        "audit_info": {
+          "$ref": "#/$defs/AuditInfo"
+        },
+        "type": {
+          "const": "account_activity_updated",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "activity",
         "audit_info"
       ],
       "type": "object"

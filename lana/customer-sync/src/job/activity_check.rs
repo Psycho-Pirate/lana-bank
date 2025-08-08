@@ -185,18 +185,18 @@ where
         for customer in customers {
             let last_transaction_date = self.get_last_transaction_date(customer.id).await?;
 
-            let new_status = match last_transaction_date {
+            let new_activity = match last_transaction_date {
                 Some(date) if date < escheatment_threshold => {
-                    core_customer::AccountStatus::EscheatmentCandidate
+                    core_customer::AccountActivity::Suspended
                 }
-                Some(date) if date < inactive_threshold => core_customer::AccountStatus::Inactive,
-                Some(_) => core_customer::AccountStatus::Active,
-                None => core_customer::AccountStatus::Inactive,
+                Some(date) if date < inactive_threshold => core_customer::AccountActivity::Disabled,
+                Some(_) => core_customer::AccountActivity::Enabled,
+                None => core_customer::AccountActivity::Disabled,
             };
 
-            if customer.status != new_status {
+            if customer.activity != new_activity {
                 self.customers
-                    .update_account_status_from_system(customer.id, new_status)
+                    .update_account_activity_from_system(customer.id, new_activity)
                     .await?;
             }
         }
