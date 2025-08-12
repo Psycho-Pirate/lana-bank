@@ -1,0 +1,27 @@
+[package]
+name = "customer-activity"
+version = "0.3.772-dev"
+license = "FSL-1.1-ALv2"
+edition = "2024"
+
+[features]
+fail-on-warnings = []
+
+[dependencies]
+
+core-customer = { path = "../../core/customer" }
+core-deposit = { path = "../../core/deposit" }
+governance = { path = "../../core/governance" }
+lana-events = { path = "../events" }
+
+outbox = { path = "../../lib/outbox" }
+job = { path = "../../lib/job" }
+audit = { path = "../../lib/audit" }
+authz = { path = "../../lib/authz" }
+
+serde = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+sqlx = { workspace = true }
