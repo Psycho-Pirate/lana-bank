@@ -275,6 +275,7 @@ checksums:
     CreditFacilities/collateralizationState/noCollateral: 498c3e9228e7a29cc8571a0fb53d4be9
     CreditFacilities/collateralizationState/underLiquidationThreshold: 9df678e2f798a4c7a056e783c686bce5
     CreditFacilities/collateralizationState/underMarginCallThreshold: 56f8da43160ce599d62c6530ed97c233
+    CreditFacilities/collateralizationState/noExposure: 25de75d010cf97f834518f4bbacb9d75
     CreditFacilities/errors/fetchError: 97f7c28b3288c6bbf454f0a28198730a
     CreditFacilities/errors/general: 53a2b5f5e7d83c737c8e02fe18fb4bdb
     CreditFacilities/CreditFacilityDetails/RepaymentPlan/title: 416716dbfa4883b589c792610e827d74
@@ -329,9 +330,9 @@ checksums:
     CreditFacilities/CreditFacilityDetails/CollateralCard/details/collateralBalance: c10ffee396cceecea1fab22fb04a37d9
     CreditFacilities/CreditFacilityDetails/CollateralCard/details/currentPrice: 2c254d00cfeeeabc166cb6ba41c2e771
     CreditFacilities/CreditFacilityDetails/CollateralCard/details/collateralValue: e049af90c4cf0083250c15766fcb5baf
-    CreditFacilities/CreditFacilityDetails/CollateralCard/details/marginCallPrice: 427dd5ba9e94fb21504b41fb49a147d5
-    CreditFacilities/CreditFacilityDetails/CollateralCard/details/liquidationPrice: ad6849980915c4190942dc67d27320f2
-    CreditFacilities/CreditFacilityDetails/CollateralCard/details/collateralToReachTarget: fb11bca26865f337f69162185f456c78
+    CreditFacilities/CreditFacilityDetails/CollateralCard/details/marginCallPrice: fd98fcf98c5067b5d99058a937b05ff3
+    CreditFacilities/CreditFacilityDetails/CollateralCard/details/liquidationPrice: 9acfaa3784e5d2c8235f80200965e67c
+    CreditFacilities/CreditFacilityDetails/CollateralCard/details/collateralToReachTarget: 2cdbafda70e07e079d23b09959c3ff05
     CreditFacilities/CreditFacilityDetails/CollateralCard/details/currentCvl: c7bb280a34ad5e3a082c74df8187317e
     CreditFacilities/CreditFacilityDetails/CollateralCard/status/moderate: 95557ed97b0493b6bad104be24c080c8
     CreditFacilities/CreditFacilityDetails/CollateralCard/status/high: dabe777f3b670e9407e46c186197d188

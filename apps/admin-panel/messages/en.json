@@ -436,7 +436,8 @@
       "fullyCollateralized": "Fully Collateralized",
       "noCollateral": "No Collateral",
       "underLiquidationThreshold": "Under Liquidation Threshold",
-      "underMarginCallThreshold": "Under Margin Call Threshold"
+      "underMarginCallThreshold": "Under Margin Call Threshold",
+      "noExposure": "No Exposure"
     },
     "errors": {
       "fetchError": "An error occurred while fetching data.",
@@ -529,9 +530,9 @@
           "collateralBalance": "Collateral balance (BTC)",
           "currentPrice": "Current BTC/USD Price",
           "collateralValue": "Collateral value (USD)",
-          "marginCallPrice": "Margin Call Price BTC/USD ({percentage}%)",
-          "liquidationPrice": "Liquidation Price BTC/USD ({percentage}%)",
-          "collateralToReachTarget": "Collateral to reach target ({percentage}%)",
+          "marginCallPrice": "Margin Call Price BTC/USD ({percentage})",
+          "liquidationPrice": "Liquidation Price BTC/USD ({percentage})",
+          "collateralToReachTarget": "Collateral to reach target ({percentage})",
           "currentCvl": "Current CVL"
         },
         "status": {

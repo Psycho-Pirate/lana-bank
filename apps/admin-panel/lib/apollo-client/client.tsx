@@ -11,7 +11,6 @@ import {
 } from "@/lib/graphql/generated"
 
 import { CENTS_PER_USD, SATS_PER_BTC } from "@/lib/utils"
-import { calculateBaseAmountInCents } from "@/app/credit-facilities/[credit-facility-id]/collateral-card"
 
 export const makeClient = ({ coreAdminGqlUrl }: { coreAdminGqlUrl: string }) => {
   const uploadLink = createUploadLink({
@@ -80,13 +79,16 @@ export const makeClient = ({ coreAdminGqlUrl }: { coreAdminGqlUrl: string }) => 
         const priceInfo = await fetchData(cache)
         if (!priceInfo) return null
 
-        const basisAmountInUsd = calculateBaseAmountInCents(facility) / CENTS_PER_USD
+        const bitcoinPrice = priceInfo.realtimePrice.usdCentsPerBtc / CENTS_PER_USD
+        const basisAmountInUsd = facility.facilityAmount / CENTS_PER_USD
 
-        const initialCvlDecimal = facility.creditFacilityTerms.initialCvl / 100
+        const initialCvlDecimal =
+          facility.creditFacilityTerms.initialCvl.__typename === "FiniteCVLPct"
+            ? Number(facility.creditFacilityTerms.initialCvl.value || 0) / 100
+            : Infinity
 
         const requiredCollateralInSats =
-          (initialCvlDecimal * basisAmountInUsd * SATS_PER_BTC) /
-          (priceInfo.realtimePrice.usdCentsPerBtc / CENTS_PER_USD)
+          (initialCvlDecimal * basisAmountInUsd * SATS_PER_BTC) / bitcoinPrice
 
         return Math.floor(requiredCollateralInSats)
       },

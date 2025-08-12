@@ -20,9 +20,10 @@ import { Label } from "@lana/web/ui/label"
 
 import {
   useUpdateTermsTemplateMutation,
-  TermsTemplateQuery,
+  TermsTemplateFieldsFragment,
 } from "@/lib/graphql/generated"
 import { DEFAULT_TERMS } from "@/lib/constants/terms"
+import { getCvlValue } from "@/lib/utils"
 
 gql`
   mutation UpdateTermsTemplate($input: TermsTemplateUpdateInput!) {
@@ -37,7 +38,7 @@ gql`
 type UpdateTermsTemplateDialogProps = {
   setOpenUpdateTermsTemplateDialog: (isOpen: boolean) => void
   openUpdateTermsTemplateDialog: boolean
-  termsTemplate: NonNullable<TermsTemplateQuery["termsTemplate"]>
+  termsTemplate: TermsTemplateFieldsFragment
 }
 
 export const UpdateTermsTemplateDialog: React.FC<UpdateTermsTemplateDialogProps> = ({
@@ -68,9 +69,9 @@ export const UpdateTermsTemplateDialog: React.FC<UpdateTermsTemplateDialogProps>
         name: termsTemplate.name,
         annualRate: termsTemplate.values.annualRate.toString(),
         durationUnits: termsTemplate.values.duration.units.toString(),
-        liquidationCvl: termsTemplate.values.liquidationCvl.toString(),
-        marginCallCvl: termsTemplate.values.marginCallCvl.toString(),
-        initialCvl: termsTemplate.values.initialCvl.toString(),
+        liquidationCvl: getCvlValue(termsTemplate.values.liquidationCvl).toString(),
+        marginCallCvl: getCvlValue(termsTemplate.values.marginCallCvl).toString(),
+        initialCvl: getCvlValue(termsTemplate.values.initialCvl).toString(),
         oneTimeFeeRate: termsTemplate.values.oneTimeFeeRate.toString(),
       })
     }
