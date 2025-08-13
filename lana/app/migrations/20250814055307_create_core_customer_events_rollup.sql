@@ -41,15 +41,7 @@ BEGIN
   END IF;
 
   -- Validate event type is known
-<<<<<<< HEAD:lana/app/migrations/20250813105119_create_core_customer_events_rollup.sql
-  IF event_type NOT IN ('initialized', 'authentication_id_updated', 'kyc_started', 'kyc_approved', 'kyc_declined', 'status_updated', 'telegram_id_updated', 'email_updated') THEN
-=======
-<<<<<<<< HEAD:lana/app/migrations/20250812143805_create_core_customer_events_rollup.sql
-  IF event_type NOT IN ('initialized', 'kyc_started', 'kyc_approved', 'kyc_declined', 'account_status_updated', 'telegram_id_updated', 'email_updated') THEN
-========
-  IF event_type NOT IN ('initialized', 'authentication_id_updated', 'kyc_started', 'kyc_approved', 'kyc_declined', 'account_status_updated', 'telegram_id_updated', 'email_updated', 'account_activity_updated') THEN
->>>>>>>> d7897206c (feat: decouple AccountActivity from AccountStatus):lana/app/migrations/20250808115734_create_core_customer_events_rollup.sql
->>>>>>> ef18380ab (feat: decouple AccountActivity from AccountStatus):lana/app/migrations/20250812143805_create_core_customer_events_rollup.sql
+  IF event_type NOT IN ('initialized', 'authentication_id_updated', 'kyc_started', 'kyc_approved', 'kyc_declined', 'status_updated', 'telegram_id_updated', 'email_updated', 'account_activity_updated') THEN
     RAISE EXCEPTION 'Unknown event type: %', event_type;
   END IF;
 

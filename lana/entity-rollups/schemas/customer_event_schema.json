@@ -8,13 +8,6 @@
       ],
       "type": "string"
     },
-    "AccountStatus": {
-      "enum": [
-        "inactive",
-        "active"
-      ],
-      "type": "string"
-    },
     "AuditEntryId": {
       "format": "int64",
       "type": "integer"

@@ -16,6 +16,7 @@ use authz::PermissionCheck;
 use document_storage::{
     Document, DocumentId, DocumentStorage, DocumentType, GeneratedDocumentDownloadLink,
 };
+use es_entity::{PaginatedQueryArgs, PaginatedQueryRet};
 use outbox::{Outbox, OutboxEventMarker};
 use public_id::PublicIds;
 
@@ -561,9 +562,20 @@ where
         Ok(result)
     }
 
-    #[instrument(name = "customer.list_all_customers", skip(self), err)]
-    pub async fn list_all_customers(&self) -> Result<Vec<Customer>, CustomerError> {
-        self.repo.list_all_customers().await
+    #[instrument(name = "customer.list_customers_for_system_operation", skip(self), err)]
+    pub async fn list_customers_for_system_operation(
+        &self,
+        query: PaginatedQueryArgs<CustomersByIdCursor>,
+    ) -> Result<PaginatedQueryRet<Customer, CustomersByIdCursor>, CustomerError> {
+        self.authz
+            .audit()
+            .record_system_entry(
+                CustomerObject::all_customers(),
+                CoreCustomerAction::CUSTOMER_LIST,
+            )
+            .await?;
+
+        self.repo.list_by_id_without_auth(query).await
     }
 
     #[instrument(name = "customer.update_account_activity_from_system", skip(self), err)]

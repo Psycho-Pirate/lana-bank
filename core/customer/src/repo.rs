@@ -4,7 +4,7 @@ pub use es_entity::Sort;
 use es_entity::*;
 use outbox::OutboxEventMarker;
 
-use crate::{event::CoreCustomerEvent, primitives::*, publisher::*};
+use crate::{CustomersByIdCursor, event::CoreCustomerEvent, primitives::*, publisher::*};
 
 use super::{entity::*, error::*};
 
@@ -62,18 +62,11 @@ where
         self.publisher.publish(db, entity, new_events).await
     }
 
-    pub async fn list_all_customers(&self) -> Result<Vec<Customer>, CustomerError> {
-        let mut customers = Vec::new();
-        let mut next = Some(PaginatedQueryArgs::default());
-
-        while let Some(query) = next.take() {
-            let mut ret = self.list_by_id(query, Default::default()).await?;
-
-            customers.append(&mut ret.entities);
-            next = ret.into_next_query();
-        }
-
-        Ok(customers)
+    pub async fn list_by_id_without_auth(
+        &self,
+        query: PaginatedQueryArgs<CustomersByIdCursor>,
+    ) -> Result<PaginatedQueryRet<Customer, CustomersByIdCursor>, CustomerError> {
+        self.list_by_id(query, Default::default()).await
     }
 }
 
