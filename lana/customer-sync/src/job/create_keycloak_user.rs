@@ -1,0 +1,137 @@
+use async_trait::async_trait;
+use futures::StreamExt;
+use keycloak_client::KeycloakClient;
+use tracing::instrument;
+
+use core_customer::CoreCustomerEvent;
+use core_deposit::CoreDepositEvent;
+use outbox::{Outbox, OutboxEventMarker, PersistentOutboxEvent};
+
+use job::*;
+
+#[derive(serde::Serialize)]
+pub struct CreateKeycloakUserJobConfig<E> {
+    _phantom: std::marker::PhantomData<E>,
+}
+impl<E> CreateKeycloakUserJobConfig<E> {
+    pub fn new() -> Self {
+        Self {
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+impl<E> JobConfig for CreateKeycloakUserJobConfig<E>
+where
+    E: OutboxEventMarker<CoreCustomerEvent> + OutboxEventMarker<CoreDepositEvent>,
+{
+    type Initializer = CreateKeycloakUserInit<E>;
+}
+
+pub struct CreateKeycloakUserInit<E>
+where
+    E: OutboxEventMarker<CoreCustomerEvent> + OutboxEventMarker<CoreDepositEvent>,
+{
+    outbox: Outbox<E>,
+    keycloak_client: KeycloakClient,
+}
+
+impl<E> CreateKeycloakUserInit<E>
+where
+    E: OutboxEventMarker<CoreCustomerEvent> + OutboxEventMarker<CoreDepositEvent>,
+{
+    pub fn new(outbox: &Outbox<E>, keycloak_client: KeycloakClient) -> Self {
+        Self {
+            outbox: outbox.clone(),
+            keycloak_client,
+        }
+    }
+}
+
+const CUSTOMER_SYNC_CREATE_KEYCLOAK_USER: JobType =
+    JobType::new("customer-sync-create-keycloak-user");
+impl<E> JobInitializer for CreateKeycloakUserInit<E>
+where
+    E: OutboxEventMarker<CoreCustomerEvent> + OutboxEventMarker<CoreDepositEvent>,
+{
+    fn job_type() -> JobType
+    where
+        Self: Sized,
+    {
+        CUSTOMER_SYNC_CREATE_KEYCLOAK_USER
+    }
+
+    fn init(&self, _: &Job) -> Result<Box<dyn JobRunner>, Box<dyn std::error::Error>> {
+        Ok(Box::new(CreateKeycloakUserJobRunner::<E> {
+            outbox: self.outbox.clone(),
+            keycloak_client: self.keycloak_client.clone(),
+        }))
+    }
+
+    fn retry_on_error_settings() -> RetrySettings
+    where
+        Self: Sized,
+    {
+        RetrySettings::repeat_indefinitely()
+    }
+}
+
+#[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
+struct CreateKeycloakUserJobData {
+    sequence: outbox::EventSequence,
+}
+
+pub struct CreateKeycloakUserJobRunner<E>
+where
+    E: OutboxEventMarker<CoreCustomerEvent> + OutboxEventMarker<CoreDepositEvent>,
+{
+    outbox: Outbox<E>,
+    keycloak_client: KeycloakClient,
+}
+#[async_trait]
+impl<E> JobRunner for CreateKeycloakUserJobRunner<E>
+where
+    E: OutboxEventMarker<CoreCustomerEvent> + OutboxEventMarker<CoreDepositEvent>,
+{
+    async fn run(
+        &self,
+        mut current_job: CurrentJob,
+    ) -> Result<JobCompletion, Box<dyn std::error::Error>> {
+        let mut state = current_job
+            .execution_state::<CreateKeycloakUserJobData>()?
+            .unwrap_or_default();
+        let mut stream = self.outbox.listen_persisted(Some(state.sequence)).await?;
+
+        while let Some(message) = stream.next().await {
+            if let Some(CoreCustomerEvent::CustomerCreated { .. }) = &message.as_ref().as_event() {
+                self.handle_create_keycloak_user(message.as_ref()).await?;
+            }
+
+            state.sequence = message.sequence;
+            current_job.update_execution_state(state.clone()).await?;
+        }
+
+        Ok(JobCompletion::RescheduleNow)
+    }
+}
+
+impl<E> CreateKeycloakUserJobRunner<E>
+where
+    E: OutboxEventMarker<CoreCustomerEvent> + OutboxEventMarker<CoreDepositEvent>,
+{
+    #[instrument(name = "customer_sync.create_keycloak_user", skip(self, message))]
+    async fn handle_create_keycloak_user(
+        &self,
+        message: &PersistentOutboxEvent<E>,
+    ) -> Result<(), Box<dyn std::error::Error>>
+    where
+        E: OutboxEventMarker<CoreCustomerEvent>,
+    {
+        if let Some(CoreCustomerEvent::CustomerCreated { id, email, .. }) = message.as_event() {
+            message.inject_trace_parent();
+            self.keycloak_client
+                .create_user(email.clone(), id.into())
+                .await?;
+        }
+        Ok(())
+    }
+}

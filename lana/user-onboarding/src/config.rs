@@ -1,7 +1,8 @@
-use kratos_admin::KratosAdminConfig;
+use keycloak_client::KeycloakConnectionConfig;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UserOnboardingConfig {
-    pub kratos_admin: KratosAdminConfig,
+    #[serde(default)]
+    pub keycloak: KeycloakConnectionConfig,
 }

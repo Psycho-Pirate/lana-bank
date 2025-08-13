@@ -26,14 +26,20 @@ app:
     provider: local
     root_folder: ''
   user_onboarding:
-    kratos_admin:
-      kratos_admin_url: http://localhost:4434
+    keycloak:
+      url: http://localhost:8081
+      client_id: internal-service-account
+      realm: internal
+      client_secret: secret
   customer_sync:
     auto_create_deposit_account: true
     customer_status_sync_active: true
-    kratos_admin:
-      kratos_admin_url: http://localhost:4436
     create_deposit_account_on_customer_create: false
+    keycloak:
+      url: http://localhost:8081
+      client_id: customer-service-account
+      realm: customer
+      client_secret: secret
   deposit_sync:
     sumsub_export_enabled: true
   accounting_init:

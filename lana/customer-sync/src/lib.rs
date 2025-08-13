@@ -11,7 +11,7 @@ use job::*;
 
 use audit::AuditSvc;
 use authz::PermissionCheck;
-use core_customer::{CoreCustomerAction, CoreCustomerEvent, CustomerObject, Customers};
+use core_customer::{CoreCustomerAction, CoreCustomerEvent, CustomerObject};
 use core_deposit::{
     CoreDeposit, CoreDepositAction, CoreDepositEvent, CoreDepositObject, GovernanceAction,
     GovernanceObject,
@@ -59,22 +59,23 @@ where
     pub async fn init(
         jobs: &::job::Jobs,
         outbox: &Outbox<E>,
-        customers: &Customers<Perms, E>,
         deposit: &CoreDeposit<Perms, E>,
         config: CustomerSyncConfig,
     ) -> Result<Self, CustomerSyncError> {
+        let keycloak_client = keycloak_client::KeycloakClient::new(config.keycloak.clone());
+
         jobs.add_initializer_and_spawn_unique(
             CreateDepositAccountInit::new(outbox, deposit, config.clone()),
             CreateDepositAccountJobConfig::new(),
         )
         .await?;
         jobs.add_initializer_and_spawn_unique(
-            CreateKratosUserInit::new(outbox, customers, config.clone()),
-            CreateKratosUserJobConfig::new(),
+            CreateKeycloakUserInit::new(outbox, keycloak_client.clone()),
+            CreateKeycloakUserJobConfig::new(),
         )
         .await?;
         jobs.add_initializer_and_spawn_unique(
-            SyncEmailInit::new(outbox, customers, config.clone()),
+            SyncEmailInit::new(outbox, keycloak_client),
             SyncEmailJobConfig::new(),
         )
         .await?;

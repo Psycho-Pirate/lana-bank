@@ -1597,12 +1597,10 @@ dependencies = [
  "axum 0.8.4",
  "axum-extra 0.10.1",
  "chrono",
- "core-customer",
  "es-entity",
  "jwks-utils",
  "lana-app",
  "serde",
- "serde_json",
  "thiserror 2.0.14",
  "tokio",
  "tower-http",
@@ -1623,7 +1621,7 @@ dependencies = [
  "futures",
  "governance",
  "job",
- "kratos-admin",
+ "keycloak-client",
  "outbox",
  "serde",
  "thiserror 2.0.14",
@@ -3109,6 +3107,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "keycloak"
+version = "26.3.100"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7909fea553cd883f21f831285f76a64da512f4acdef8915b91ed05cf0faace3"
+dependencies = [
+ "async-trait",
+ "percent-encoding",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_with",
+]
+
+[[package]]
+name = "keycloak-client"
+version = "0.3.772-dev"
+dependencies = [
+ "keycloak",
+ "reqwest",
+ "serde",
+ "thiserror 2.0.14",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "komainu"
 version = "0.3.772-dev"
 dependencies = [
@@ -3127,18 +3151,6 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "kratos-admin"
-version = "0.3.772-dev"
-dependencies = [
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.14",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -6659,12 +6671,11 @@ name = "user-onboarding"
 version = "0.3.772-dev"
 dependencies = [
  "async-trait",
- "audit",
  "core-access",
  "es-entity",
  "futures",
  "job",
- "kratos-admin",
+ "keycloak-client",
  "outbox",
  "serde",
  "thiserror 2.0.14",

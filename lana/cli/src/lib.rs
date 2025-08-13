@@ -38,6 +38,10 @@ struct Cli {
     dev_env_name_prefix: Option<String>,
     #[clap(long, env = "ENCRYPTION_KEY", default_value = "")]
     encryption_key: String,
+    #[clap(env = "KEYCLOAK_INTERNAL_CLIENT_SECRET", default_value = "secret")]
+    keycloak_internal_client_secret: String,
+    #[clap(env = "KEYCLOAK_CUSTOMER_CLIENT_SECRET", default_value = "secret")]
+    keycloak_customer_client_secret: String,
     #[clap(long, env = "LANA_HOME", default_value = ".lana")]
     lana_home: String,
     #[clap(subcommand)]
@@ -86,6 +90,8 @@ pub async fn run() -> anyhow::Result<()> {
                     smtp_username: cli.smtp_username,
                     smtp_password: cli.smtp_password,
                     encryption_key: cli.encryption_key,
+                    keycloak_internal_client_secret: cli.keycloak_internal_client_secret,
+                    keycloak_customer_client_secret: cli.keycloak_customer_client_secret,
                 },
                 cli.dev_env_name_prefix,
             )?;
