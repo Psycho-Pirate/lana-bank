@@ -189,29 +189,45 @@ where
         let inactive_threshold = now - Duration::days(self.config.inactive_threshold_days);
         let escheatment_threshold = now - Duration::days(self.config.escheatment_threshold_days);
 
-        let customers = self.customers.list_all_customers().await?;
+        const BATCH_SIZE: usize = 100;
+        let mut query = es_entity::PaginatedQueryArgs {
+            first: BATCH_SIZE,
+            after: None,
+        };
 
-        for customer in customers {
-            let last_activity_date = self
-                .customer_activity
-                .load_activity_by_customer_id(customer.id)
+        loop {
+            let result = self
+                .customers
+                .list_customers_for_system_operation(query)
                 .await?;
 
-            let new_activity = match last_activity_date {
-                Some(activity) if activity.last_activity_date < escheatment_threshold => {
-                    core_customer::AccountActivity::Suspended
-                }
-                Some(activity) if activity.last_activity_date < inactive_threshold => {
-                    core_customer::AccountActivity::Disabled
-                }
-                Some(_) => core_customer::AccountActivity::Enabled,
-                None => core_customer::AccountActivity::Disabled,
-            };
-
-            if customer.activity != new_activity {
-                self.customers
-                    .update_account_activity_from_system(customer.id, new_activity)
+            for customer in &result.entities {
+                let last_activity_date = self
+                    .customer_activity
+                    .load_activity_by_customer_id(customer.id)
                     .await?;
+
+                let new_activity = match last_activity_date {
+                    Some(activity) if activity.last_activity_date < escheatment_threshold => {
+                        core_customer::AccountActivity::Suspended
+                    }
+                    Some(activity) if activity.last_activity_date < inactive_threshold => {
+                        core_customer::AccountActivity::Disabled
+                    }
+                    Some(_) => core_customer::AccountActivity::Enabled,
+                    None => core_customer::AccountActivity::Disabled,
+                };
+
+                if customer.activity != new_activity {
+                    self.customers
+                        .update_account_activity_from_system(customer.id, new_activity)
+                        .await?;
+                }
+            }
+
+            match result.into_next_query() {
+                Some(next_query) => query = next_query,
+                None => break,
             }
         }
 
