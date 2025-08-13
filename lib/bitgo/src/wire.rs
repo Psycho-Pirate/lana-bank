@@ -13,6 +13,18 @@ use sha2::Sha256;
 
 use crate::BitgoError;
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Fallible<T> {
+    #[serde(rename_all = "camelCase")]
+    Error {
+        error: String,
+        name: String,
+        request_id: String,
+    },
+    Ok(T),
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Notification {
@@ -32,11 +44,24 @@ pub struct TransferNotification {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct Enterprise {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Wallet {
     pub id: String,
     pub label: String,
     pub receive_address: Address,
     pub confirmed_balance: u64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetWalletCountResponse {
+    pub count: u32,
 }
 
 #[derive(Clone, Debug, Deserialize)]
