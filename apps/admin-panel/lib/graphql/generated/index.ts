@@ -38,11 +38,6 @@ export type Scalars = {
   UsdCents: { input: UsdCents; output: UsdCents; }
 };
 
-export enum AccountStatus {
-  Active = 'ACTIVE',
-  Inactive = 'INACTIVE'
-}
-
 export type AccountingCsvDocument = {
   __typename?: 'AccountingCsvDocument';
   createdAt: Scalars['Timestamp']['output'];
