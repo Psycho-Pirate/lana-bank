@@ -27,11 +27,6 @@ export type Scalars = {
   UsdCents: { input: any; output: any; }
 };
 
-export enum AccountStatus {
-  Active = 'ACTIVE',
-  Inactive = 'INACTIVE'
-}
-
 export type CancelledWithdrawalEntry = {
   __typename?: 'CancelledWithdrawalEntry';
   recordedAt: Scalars['Timestamp']['output'];
