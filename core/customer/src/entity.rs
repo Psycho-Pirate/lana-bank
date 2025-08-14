@@ -35,8 +35,8 @@ pub enum CustomerEvent {
         applicant_id: String,
         audit_info: AuditInfo,
     },
-    AccountStatusUpdated {
-        status: AccountStatus,
+    StatusUpdated {
+        status: CustomerStatus,
         audit_info: AuditInfo,
     },
     TelegramIdUpdated {
@@ -56,7 +56,7 @@ pub struct Customer {
     pub email: String,
     pub telegram_id: String,
     #[builder(default)]
-    pub status: AccountStatus,
+    pub status: CustomerStatus,
     pub level: KycLevel,
     pub customer_type: CustomerType,
     #[builder(setter(strip_option, into), default)]
@@ -114,7 +114,7 @@ impl Customer {
         self.applicant_id = Some(applicant_id);
         self.level = KycLevel::Basic;
 
-        self.update_account_status(AccountStatus::Active, audit_info)
+        self.update_account_status(CustomerStatus::Active, audit_info)
     }
 
     pub fn decline_kyc(&mut self, applicant_id: String, audit_info: AuditInfo) -> Idempotent<()> {
@@ -128,20 +128,20 @@ impl Customer {
             audit_info: audit_info.clone(),
         });
         self.level = KycLevel::NotKyced;
-        self.update_account_status(AccountStatus::Inactive, audit_info)
+        self.update_account_status(CustomerStatus::Inactive, audit_info)
     }
 
     fn update_account_status(
         &mut self,
-        status: AccountStatus,
+        status: CustomerStatus,
         audit_info: AuditInfo,
     ) -> Idempotent<()> {
         idempotency_guard!(
             self.events.iter_all().rev(),
-            CustomerEvent::AccountStatusUpdated { status: existing_status, .. } if existing_status == &status
+            CustomerEvent::StatusUpdated { status: existing_status, .. } if existing_status == &status
         );
         self.events
-            .push(CustomerEvent::AccountStatusUpdated { status, audit_info });
+            .push(CustomerEvent::StatusUpdated { status, audit_info });
         self.status = status;
         Idempotent::Executed(())
     }
@@ -211,7 +211,7 @@ impl TryFromEvents<CustomerEvent> for Customer {
                 CustomerEvent::KycDeclined { applicant_id, .. } => {
                     builder = builder.applicant_id(applicant_id.clone())
                 }
-                CustomerEvent::AccountStatusUpdated { status, .. } => {
+                CustomerEvent::StatusUpdated { status, .. } => {
                     builder = builder.status(*status);
                 }
                 CustomerEvent::TelegramIdUpdated { telegram_id, .. } => {
@@ -238,7 +238,7 @@ pub struct NewCustomer {
     #[builder(setter(into))]
     pub(super) customer_type: CustomerType,
     #[builder(setter(skip), default)]
-    pub(super) status: AccountStatus,
+    pub(super) status: CustomerStatus,
     #[builder(setter(into))]
     pub(super) public_id: PublicId,
     pub(super) audit_info: AuditInfo,
