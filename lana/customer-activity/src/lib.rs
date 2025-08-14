@@ -31,7 +31,7 @@ impl CustomerActivityService {
         self.repo
             .load_activity_by_customer_id(customer_id)
             .await
-            .map_err(CustomerActivityError::DatabaseError)
+            .map_err(CustomerActivityError::Sqlx)
     }
 
     pub async fn persist_activity(
@@ -41,6 +41,6 @@ impl CustomerActivityService {
         self.repo
             .persist_activity(activity)
             .await
-            .map_err(CustomerActivityError::DatabaseError)
+            .map_err(CustomerActivityError::Sqlx)
     }
 }
