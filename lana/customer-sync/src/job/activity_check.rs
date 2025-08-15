@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 use tracing::instrument;
 
 use audit::AuditSvc;
@@ -188,47 +188,64 @@ where
         let now = Utc::now();
         let inactive_threshold = now - Duration::days(self.config.inactive_threshold_days);
         let escheatment_threshold = now - Duration::days(self.config.escheatment_threshold_days);
+        let min_date = NaiveDate::MIN.and_hms_opt(0, 0, 0).unwrap().and_utc();
 
-        const BATCH_SIZE: usize = 100;
-        let mut query = es_entity::PaginatedQueryArgs {
-            first: BATCH_SIZE,
-            after: None,
-        };
+        self.update_customers_by_activity_range(
+            min_date,
+            escheatment_threshold,
+            core_customer::Activity::Suspended,
+        )
+        .await?;
 
-        loop {
-            let result = self
-                .customers
-                .list_customers_for_system_operation(query)
+        self.update_customers_by_activity_range(
+            escheatment_threshold,
+            inactive_threshold,
+            core_customer::Activity::Disabled,
+        )
+        .await?;
+
+        self.update_customers_by_activity_range(
+            inactive_threshold,
+            now,
+            core_customer::Activity::Enabled,
+        )
+        .await?;
+
+        self.update_customers_without_activity().await?;
+
+        Ok(())
+    }
+
+    async fn update_customers_by_activity_range(
+        &self,
+        start_threshold: DateTime<Utc>,
+        end_threshold: DateTime<Utc>,
+        activity: core_customer::Activity,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let customers = self
+            .customer_activity
+            .find_customers_with_activity_in_range(start_threshold, end_threshold)
+            .await?;
+
+        for customer_id in customers {
+            self.customers
+                .update_activity_from_system(customer_id, activity)
                 .await?;
+        }
 
-            for customer in &result.entities {
-                let last_activity_date = self
-                    .customer_activity
-                    .load_activity_by_customer_id(customer.id)
-                    .await?;
+        Ok(())
+    }
 
-                let new_activity = match last_activity_date {
-                    Some(activity) if activity.last_activity_date < escheatment_threshold => {
-                        core_customer::AccountActivity::Suspended
-                    }
-                    Some(activity) if activity.last_activity_date < inactive_threshold => {
-                        core_customer::AccountActivity::Disabled
-                    }
-                    Some(_) => core_customer::AccountActivity::Enabled,
-                    None => core_customer::AccountActivity::Disabled,
-                };
+    async fn update_customers_without_activity(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let customers = self
+            .customer_activity
+            .find_customers_without_activity()
+            .await?;
 
-                if customer.activity != new_activity {
-                    self.customers
-                        .update_account_activity_from_system(customer.id, new_activity)
-                        .await?;
-                }
-            }
-
-            match result.into_next_query() {
-                Some(next_query) => query = next_query,
-                None => break,
-            }
+        for customer_id in customers {
+            self.customers
+                .update_activity_from_system(customer_id, core_customer::Activity::Disabled)
+                .await?;
         }
 
         Ok(())

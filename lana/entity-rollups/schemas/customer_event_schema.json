@@ -1,6 +1,6 @@
 {
   "$defs": {
-    "AccountActivity": {
+    "Activity": {
       "enum": [
         "disabled",
         "enabled",
@@ -60,7 +60,7 @@
     {
       "properties": {
         "activity": {
-          "$ref": "#/$defs/AccountActivity"
+          "$ref": "#/$defs/Activity"
         },
         "audit_info": {
           "$ref": "#/$defs/AuditInfo"
@@ -225,13 +225,13 @@
     {
       "properties": {
         "activity": {
-          "$ref": "#/$defs/AccountActivity"
+          "$ref": "#/$defs/Activity"
         },
         "audit_info": {
           "$ref": "#/$defs/AuditInfo"
         },
         "type": {
-          "const": "account_activity_updated",
+          "const": "activity_updated",
           "type": "string"
         }
       },

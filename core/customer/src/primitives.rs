@@ -60,7 +60,7 @@ pub enum CustomerStatus {
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
-pub enum AccountActivity {
+pub enum Activity {
     #[default]
     Disabled,
     Enabled,
