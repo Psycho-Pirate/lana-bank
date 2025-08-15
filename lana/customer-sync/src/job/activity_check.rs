@@ -149,7 +149,7 @@ where
         &self,
         _current_job: CurrentJob,
     ) -> Result<JobCompletion, Box<dyn std::error::Error>> {
-        let now = Utc::now();
+        let now = crate::time::now();
 
         if !self.config.activity_check_enabled {
             let next_run = calculate_next_run_time(
@@ -185,7 +185,7 @@ where
 {
     #[instrument(name = "customer_activity_check.perform_check", skip(self), err)]
     async fn perform_activity_check(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let now = Utc::now();
+        let now = crate::time::now();
         let inactive_threshold = now - Duration::days(self.config.inactive_threshold_days);
         let escheatment_threshold = now - Duration::days(self.config.escheatment_threshold_days);
         let min_date = NaiveDate::MIN.and_hms_opt(0, 0, 0).unwrap().and_utc();
