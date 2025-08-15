@@ -4,7 +4,7 @@ pub use es_entity::Sort;
 use es_entity::*;
 use outbox::OutboxEventMarker;
 
-use crate::{CustomersByIdCursor, event::CoreCustomerEvent, primitives::*, publisher::*};
+use crate::{event::CoreCustomerEvent, primitives::*, publisher::*};
 
 use super::{entity::*, error::*};
 
@@ -16,7 +16,7 @@ use super::{entity::*, error::*};
         email(ty = "String", list_by),
         telegram_id(ty = "String", list_by),
         status(ty = "CustomerStatus", list_for),
-        activity(ty = "AccountActivity", list_for),
+        activity(ty = "Activity", list_for),
         public_id(ty = "PublicId", list_by)
     ),
     tbl_prefix = "core",
@@ -61,13 +61,6 @@ where
     ) -> Result<(), CustomerError> {
         self.publisher.publish(db, entity, new_events).await
     }
-
-    pub async fn list_by_id_without_auth(
-        &self,
-        query: PaginatedQueryArgs<CustomersByIdCursor>,
-    ) -> Result<PaginatedQueryRet<Customer, CustomersByIdCursor>, CustomerError> {
-        self.list_by_id(query, Default::default()).await
-    }
 }
 
 mod account_status_sqlx {
@@ -111,9 +104,9 @@ mod account_status_sqlx {
 mod account_activity_sqlx {
     use sqlx::{Type, postgres::*};
 
-    use crate::primitives::AccountActivity;
+    use crate::primitives::Activity;
 
-    impl Type<Postgres> for AccountActivity {
+    impl Type<Postgres> for Activity {
         fn type_info() -> PgTypeInfo {
             <String as Type<Postgres>>::type_info()
         }
@@ -123,7 +116,7 @@ mod account_activity_sqlx {
         }
     }
 
-    impl sqlx::Encode<'_, Postgres> for AccountActivity {
+    impl sqlx::Encode<'_, Postgres> for Activity {
         fn encode_by_ref(
             &self,
             buf: &mut PgArgumentBuffer,
@@ -132,14 +125,14 @@ mod account_activity_sqlx {
         }
     }
 
-    impl<'r> sqlx::Decode<'r, Postgres> for AccountActivity {
+    impl<'r> sqlx::Decode<'r, Postgres> for Activity {
         fn decode(value: PgValueRef<'r>) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
             let s = <String as sqlx::Decode<'r, Postgres>>::decode(value)?;
             Ok(s.parse().map_err(|e: strum::ParseError| Box::new(e))?)
         }
     }
 
-    impl PgHasArrayType for AccountActivity {
+    impl PgHasArrayType for Activity {
         fn array_type_info() -> PgTypeInfo {
             <String as sqlx::postgres::PgHasArrayType>::array_type_info()
         }

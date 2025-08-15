@@ -19,7 +19,7 @@ pub enum CustomerEvent {
         email: String,
         telegram_id: String,
         customer_type: CustomerType,
-        activity: AccountActivity,
+        activity: Activity,
         public_id: PublicId,
         audit_info: AuditInfo,
     },
@@ -48,8 +48,8 @@ pub enum CustomerEvent {
         email: String,
         audit_info: AuditInfo,
     },
-    AccountActivityUpdated {
-        activity: AccountActivity,
+    ActivityUpdated {
+        activity: Activity,
         audit_info: AuditInfo,
     },
 }
@@ -63,7 +63,7 @@ pub struct Customer {
     #[builder(default)]
     pub status: CustomerStatus,
     #[builder(default)]
-    pub activity: AccountActivity,
+    pub activity: Activity,
     pub level: KycLevel,
     pub customer_type: CustomerType,
     #[builder(setter(strip_option, into), default)]
@@ -153,16 +153,16 @@ impl Customer {
         Idempotent::Executed(())
     }
 
-    pub(crate) fn update_account_activity(
+    pub(crate) fn update_activity(
         &mut self,
-        activity: AccountActivity,
+        activity: Activity,
         audit_info: AuditInfo,
     ) -> Idempotent<()> {
         idempotency_guard!(
             self.events.iter_all().rev(),
-            CustomerEvent::AccountActivityUpdated { activity: existing_activity, .. } if existing_activity == &activity
+            CustomerEvent::ActivityUpdated { activity: existing_activity, .. } if existing_activity == &activity
         );
-        self.events.push(CustomerEvent::AccountActivityUpdated {
+        self.events.push(CustomerEvent::ActivityUpdated {
             activity,
             audit_info,
         });
@@ -246,7 +246,7 @@ impl TryFromEvents<CustomerEvent> for Customer {
                 CustomerEvent::EmailUpdated { email, .. } => {
                     builder = builder.email(email.clone());
                 }
-                CustomerEvent::AccountActivityUpdated { activity, .. } => {
+                CustomerEvent::ActivityUpdated { activity, .. } => {
                     builder = builder.activity(*activity);
                 }
             }
@@ -269,7 +269,7 @@ pub struct NewCustomer {
     #[builder(setter(skip), default)]
     pub(super) status: CustomerStatus,
     #[builder(setter(skip), default)]
-    pub(super) activity: AccountActivity,
+    pub(super) activity: Activity,
     #[builder(setter(into))]
     pub(super) public_id: PublicId,
     pub(super) audit_info: AuditInfo,

@@ -16,7 +16,6 @@ use authz::PermissionCheck;
 use document_storage::{
     Document, DocumentId, DocumentStorage, DocumentType, GeneratedDocumentDownloadLink,
 };
-use es_entity::{PaginatedQueryArgs, PaginatedQueryRet};
 use outbox::{Outbox, OutboxEventMarker};
 use public_id::PublicIds;
 
@@ -562,27 +561,11 @@ where
         Ok(result)
     }
 
-    #[instrument(name = "customer.list_customers_for_system_operation", skip(self), err)]
-    pub async fn list_customers_for_system_operation(
-        &self,
-        query: PaginatedQueryArgs<CustomersByIdCursor>,
-    ) -> Result<PaginatedQueryRet<Customer, CustomersByIdCursor>, CustomerError> {
-        self.authz
-            .audit()
-            .record_system_entry(
-                CustomerObject::all_customers(),
-                CoreCustomerAction::CUSTOMER_LIST,
-            )
-            .await?;
-
-        self.repo.list_by_id_without_auth(query).await
-    }
-
-    #[instrument(name = "customer.update_account_activity_from_system", skip(self), err)]
-    pub async fn update_account_activity_from_system(
+    #[instrument(name = "customer.update_activity_from_system", skip(self), err)]
+    pub async fn update_activity_from_system(
         &self,
         customer_id: CustomerId,
-        activity: AccountActivity,
+        activity: Activity,
     ) -> Result<Customer, CustomerError> {
         let mut customer = self.repo.find_by_id(customer_id).await?;
 
@@ -595,7 +578,7 @@ where
             )
             .await?;
 
-        let _ = customer.update_account_activity(activity, audit_info);
+        let _ = customer.update_activity(activity, audit_info);
         self.repo.update(&mut customer).await?;
 
         Ok(customer)

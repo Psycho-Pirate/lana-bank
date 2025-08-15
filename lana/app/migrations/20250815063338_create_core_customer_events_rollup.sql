@@ -41,7 +41,7 @@ BEGIN
   END IF;
 
   -- Validate event type is known
-  IF event_type NOT IN ('initialized', 'authentication_id_updated', 'kyc_started', 'kyc_approved', 'kyc_declined', 'status_updated', 'telegram_id_updated', 'email_updated', 'account_activity_updated') THEN
+  IF event_type NOT IN ('initialized', 'kyc_started', 'kyc_approved', 'kyc_declined', 'status_updated', 'telegram_id_updated', 'email_updated', 'activity_updated') THEN
     RAISE EXCEPTION 'Unknown event type: %', event_type;
   END IF;
 
@@ -111,7 +111,7 @@ BEGIN
     WHEN 'email_updated' THEN
       new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
       new_row.email := (NEW.event ->> 'email');
-    WHEN 'account_activity_updated' THEN
+    WHEN 'activity_updated' THEN
       new_row.activity := (NEW.event ->> 'activity');
       new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
   END CASE;

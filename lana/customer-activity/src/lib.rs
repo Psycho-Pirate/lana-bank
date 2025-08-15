@@ -28,19 +28,30 @@ impl CustomerActivityService {
         &self,
         customer_id: core_customer::CustomerId,
     ) -> Result<Option<CustomerActivity>, CustomerActivityError> {
-        self.repo
-            .load_activity_by_customer_id(customer_id)
-            .await
-            .map_err(CustomerActivityError::Sqlx)
+        Ok(self.repo.load_activity_by_customer_id(customer_id).await?)
     }
 
     pub async fn persist_activity(
         &self,
         activity: &CustomerActivity,
     ) -> Result<(), CustomerActivityError> {
-        self.repo
-            .persist_activity(activity)
-            .await
-            .map_err(CustomerActivityError::Sqlx)
+        Ok(self.repo.persist_activity(activity).await?)
+    }
+
+    pub async fn find_customers_with_activity_in_range(
+        &self,
+        start_threshold: chrono::DateTime<chrono::Utc>,
+        end_threshold: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<core_customer::CustomerId>, CustomerActivityError> {
+        Ok(self
+            .repo
+            .find_customers_with_activity_in_range(start_threshold, end_threshold)
+            .await?)
+    }
+
+    pub async fn find_customers_without_activity(
+        &self,
+    ) -> Result<Vec<core_customer::CustomerId>, CustomerActivityError> {
+        Ok(self.repo.find_customers_without_activity().await?)
     }
 }
