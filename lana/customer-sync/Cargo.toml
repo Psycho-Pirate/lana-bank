@@ -5,6 +5,7 @@ edition = "2024"
 
 [features]
 fail-on-warnings = []
+sim-time = ["dep:sim-time"]
 
 [dependencies]
 
@@ -27,3 +28,4 @@ futures = { workspace = true }
 thiserror = { workspace = true }
 keycloak-client = { workspace = true }
 chrono = { workspace = true }
+sim-time = { workspace = true, optional = true }

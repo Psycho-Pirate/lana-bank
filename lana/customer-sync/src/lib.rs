@@ -4,6 +4,7 @@
 pub mod config;
 pub mod error;
 mod job;
+mod time;
 
 use config::*;
 use error::*;
