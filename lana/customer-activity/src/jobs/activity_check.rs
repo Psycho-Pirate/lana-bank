@@ -156,18 +156,9 @@ where
         _current_job: CurrentJob,
     ) -> Result<JobCompletion, Box<dyn std::error::Error>> {
         let now = now();
-
-        if !self.config.activity_check_enabled {
-            let next_run = calculate_next_run_time(
-                now,
-                self.config.activity_check_hour,
-                self.config.activity_check_minute,
-            );
-            return Ok(JobCompletion::RescheduleAt(next_run));
+        if self.config.activity_check_enabled {
+            self.perform_activity_check().await?;
         }
-
-        self.perform_activity_check().await?;
-
         let next_run = calculate_next_run_time(
             now,
             self.config.activity_check_hour,
