@@ -50,6 +50,7 @@ where
     airflow: Airflow,
     storage: Storage,
     jobs: Jobs,
+    config: ReportConfig,
 }
 
 impl<Perms, E> Clone for CoreReports<Perms, E>
@@ -65,6 +66,7 @@ where
             airflow: self.airflow.clone(),
             storage: self.storage.clone(),
             jobs: self.jobs.clone(),
+            config: self.config.clone(),
         }
     }
 }
@@ -85,25 +87,31 @@ where
         storage: &Storage,
     ) -> Result<Self, ReportError> {
         let publisher = ReportPublisher::new(outbox);
-        let airflow = Airflow::new(config.airflow);
+        let airflow = Airflow::new(config.airflow.clone());
         let report_repo = ReportRepo::new(pool, &publisher);
         let report_run_repo = ReportRunRepo::new(pool, &publisher);
 
-        jobs.add_initializer(MonitorReportRunJobInit::new(
-            airflow.clone(),
-            report_run_repo.clone(),
-            report_repo.clone(),
-        ));
-        jobs.add_initializer(TriggerReportRunJobInit::new(
-            airflow.clone(),
-            report_run_repo.clone(),
-            jobs.clone(),
-        ));
-        jobs.add_initializer_and_spawn_unique(
-            FindNewReportRunJobInit::new(airflow.clone(), report_run_repo.clone(), jobs.clone()),
-            FindNewReportRunJobConfig::new(),
-        )
-        .await?;
+        if config.enabled {
+            jobs.add_initializer(MonitorReportRunJobInit::new(
+                airflow.clone(),
+                report_run_repo.clone(),
+                report_repo.clone(),
+            ));
+            jobs.add_initializer(TriggerReportRunJobInit::new(
+                airflow.clone(),
+                report_run_repo.clone(),
+                jobs.clone(),
+            ));
+            jobs.add_initializer_and_spawn_unique(
+                FindNewReportRunJobInit::new(
+                    airflow.clone(),
+                    report_run_repo.clone(),
+                    jobs.clone(),
+                ),
+                FindNewReportRunJobConfig::new(),
+            )
+            .await?;
+        }
 
         Ok(Self {
             authz: authz.clone(),
@@ -112,6 +120,7 @@ where
             reports: report_repo,
             report_runs: report_run_repo,
             jobs: jobs.clone(),
+            config: config.clone(),
         })
     }
 
@@ -200,6 +209,10 @@ where
         &self,
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
     ) -> Result<job::JobId, ReportError> {
+        if !self.config.enabled {
+            return Err(ReportError::Disabled);
+        }
+
         self.authz
             .enforce_permission(
                 sub,

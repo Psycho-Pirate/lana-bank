@@ -20,7 +20,9 @@ fi
 
 # ── Compose file set ────────────────────────────────────────────────────────────
 FILES=(-f "$BASE")
-FILES+=(-f "$DATA")
+if [[ "${DATA_PIPELINE:-false}" == "true" ]]; then
+    FILES+=(-f "$DATA")
+fi
 [[ "$ENGINE" == docker ]] && FILES+=(-f "$OVERRIDE")   # extra_hosts only on Docker
 
 # ── Pull images first (prevents concurrent map writes) ─────────────────────────
