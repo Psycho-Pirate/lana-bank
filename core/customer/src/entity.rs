@@ -145,7 +145,8 @@ impl Customer {
     ) -> Idempotent<()> {
         idempotency_guard!(
             self.events.iter_all().rev(),
-            CustomerEvent::StatusUpdated { status: existing_status, .. } if existing_status == &status
+            CustomerEvent::StatusUpdated { status: existing_status, .. } if existing_status == &status,
+            => CustomerEvent::StatusUpdated { .. }
         );
         self.events
             .push(CustomerEvent::StatusUpdated { status, audit_info });
@@ -160,7 +161,8 @@ impl Customer {
     ) -> Idempotent<()> {
         idempotency_guard!(
             self.events.iter_all().rev(),
-            CustomerEvent::ActivityUpdated { activity: existing_activity, .. } if existing_activity == &activity
+            CustomerEvent::ActivityUpdated { activity: existing_activity, .. } if existing_activity == &activity,
+            => CustomerEvent::ActivityUpdated { .. }
         );
         self.events.push(CustomerEvent::ActivityUpdated {
             activity,

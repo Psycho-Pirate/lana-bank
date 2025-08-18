@@ -578,8 +578,9 @@ where
             )
             .await?;
 
-        let _ = customer.update_activity(activity, audit_info);
-        self.repo.update(&mut customer).await?;
+        if customer.update_activity(activity, audit_info).did_execute() {
+            self.repo.update(&mut customer).await?;
+        }
 
         Ok(customer)
     }

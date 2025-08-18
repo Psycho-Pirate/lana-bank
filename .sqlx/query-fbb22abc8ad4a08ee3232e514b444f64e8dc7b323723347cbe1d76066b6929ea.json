@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO customer_activity (customer_id, last_activity_date, updated_at)\n            VALUES ($1, $2, $3)\n            ON CONFLICT (customer_id) \n            DO UPDATE SET \n                last_activity_date = CASE \n                    WHEN customer_activity.last_activity_date < $2 THEN $2\n                    ELSE customer_activity.last_activity_date\n                END,\n                updated_at = $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fbb22abc8ad4a08ee3232e514b444f64e8dc7b323723347cbe1d76066b6929ea"
+}

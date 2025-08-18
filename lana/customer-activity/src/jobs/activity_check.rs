@@ -14,10 +14,10 @@ use governance::GovernanceEvent;
 use lana_events::LanaEvent;
 use outbox::OutboxEventMarker;
 
+use crate::CustomerActivityRepo;
+use crate::config::CustomerActivityCheckConfig;
+use crate::time::now;
 use job::*;
-
-use crate::config::*;
-use customer_activity::CustomerActivityService;
 
 #[derive(serde::Serialize)]
 pub struct CustomerActivityCheckJobConfig<Perms, E> {
@@ -29,6 +29,12 @@ impl<Perms, E> CustomerActivityCheckJobConfig<Perms, E> {
         Self {
             _phantom: std::marker::PhantomData,
         }
+    }
+}
+
+impl<Perms, E> Default for CustomerActivityCheckJobConfig<Perms, E> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -56,8 +62,8 @@ where
         + OutboxEventMarker<GovernanceEvent>,
 {
     customers: Customers<Perms, E>,
-    customer_activity: CustomerActivityService,
-    config: CustomerSyncConfig,
+    customer_activity_repo: CustomerActivityRepo,
+    config: CustomerActivityCheckConfig,
 }
 
 impl<Perms, E> CustomerActivityCheckInit<Perms, E>
@@ -71,11 +77,11 @@ where
     pub fn new(
         customers: &Customers<Perms, E>,
         pool: sqlx::PgPool,
-        config: CustomerSyncConfig,
+        config: CustomerActivityCheckConfig,
     ) -> Self {
         Self {
             customers: customers.clone(),
-            customer_activity: CustomerActivityService::new(pool),
+            customer_activity_repo: CustomerActivityRepo::new(pool),
             config,
         }
     }
@@ -105,7 +111,7 @@ where
     fn init(&self, _: &Job) -> Result<Box<dyn JobRunner>, Box<dyn std::error::Error>> {
         Ok(Box::new(CustomerActivityCheckJobRunner {
             customers: self.customers.clone(),
-            customer_activity: self.customer_activity.clone(),
+            customer_activity_repo: self.customer_activity_repo.clone(),
             config: self.config.clone(),
         }))
     }
@@ -127,8 +133,8 @@ where
         + OutboxEventMarker<GovernanceEvent>,
 {
     customers: Customers<Perms, E>,
-    customer_activity: CustomerActivityService,
-    config: CustomerSyncConfig,
+    customer_activity_repo: CustomerActivityRepo,
+    config: CustomerActivityCheckConfig,
 }
 
 #[async_trait]
@@ -149,7 +155,7 @@ where
         &self,
         _current_job: CurrentJob,
     ) -> Result<JobCompletion, Box<dyn std::error::Error>> {
-        let now = crate::time::now();
+        let now = now();
 
         if !self.config.activity_check_enabled {
             let next_run = calculate_next_run_time(
@@ -185,66 +191,49 @@ where
 {
     #[instrument(name = "customer_activity_check.perform_check", skip(self), err)]
     async fn perform_activity_check(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let now = crate::time::now();
+        let now = now();
         let inactive_threshold = now - Duration::days(self.config.inactive_threshold_days);
         let escheatment_threshold = now - Duration::days(self.config.escheatment_threshold_days);
         let min_date = NaiveDate::MIN.and_hms_opt(0, 0, 0).unwrap().and_utc();
 
-        self.update_customers_by_activity_range(
+        self.update_customers_by_activity_and_date_range(
             min_date,
             escheatment_threshold,
             core_customer::Activity::Suspended,
         )
         .await?;
 
-        self.update_customers_by_activity_range(
+        self.update_customers_by_activity_and_date_range(
             escheatment_threshold,
             inactive_threshold,
             core_customer::Activity::Disabled,
         )
         .await?;
 
-        self.update_customers_by_activity_range(
+        self.update_customers_by_activity_and_date_range(
             inactive_threshold,
             now,
             core_customer::Activity::Enabled,
         )
         .await?;
 
-        self.update_customers_without_activity().await?;
-
         Ok(())
     }
 
-    async fn update_customers_by_activity_range(
+    async fn update_customers_by_activity_and_date_range(
         &self,
         start_threshold: DateTime<Utc>,
         end_threshold: DateTime<Utc>,
         activity: core_customer::Activity,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let customers = self
-            .customer_activity
-            .find_customers_with_activity_in_range(start_threshold, end_threshold)
+            .customer_activity_repo
+            .find_customers_with_other_activity_in_range(start_threshold, end_threshold, activity)
             .await?;
 
         for customer_id in customers {
             self.customers
                 .update_activity_from_system(customer_id, activity)
-                .await?;
-        }
-
-        Ok(())
-    }
-
-    async fn update_customers_without_activity(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let customers = self
-            .customer_activity
-            .find_customers_without_activity()
-            .await?;
-
-        for customer_id in customers {
-            self.customers
-                .update_activity_from_system(customer_id, core_customer::Activity::Disabled)
                 .await?;
         }
 

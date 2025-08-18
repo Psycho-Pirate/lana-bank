@@ -10,8 +10,7 @@ use governance::{GovernanceAction, GovernanceEvent, GovernanceObject};
 use job::*;
 use outbox::{EventSequence, Outbox, OutboxEventMarker};
 
-use crate::CustomerActivityService;
-use crate::primitives::CustomerActivity;
+use crate::CustomerActivityRepo;
 use lana_events::LanaEvent;
 
 #[derive(Default, Clone, Deserialize, Serialize)]
@@ -31,7 +30,7 @@ where
         + OutboxEventMarker<GovernanceEvent>,
 {
     outbox: Outbox<E>,
-    service: CustomerActivityService,
+    repo: CustomerActivityRepo,
     deposits: CoreDeposit<Perms, E>,
 }
 
@@ -64,32 +63,19 @@ where
                 } else {
                     continue;
                 };
-
+                // TODO: Add other events that should update the customer activity
                 let customer_id = match event {
-                    LanaEvent::Deposit(CoreDepositEvent::DepositInitialized {
-                        deposit_account_id,
-                        ..
-                    }) => {
-                        let account = self
-                            .deposits
-                            .find_account_by_id_without_audit(*deposit_account_id)
-                            .await?;
-                        Some(account.account_holder_id.into())
-                    }
-                    LanaEvent::Deposit(CoreDepositEvent::WithdrawalConfirmed {
-                        deposit_account_id,
-                        ..
-                    }) => {
-                        let account = self
-                            .deposits
-                            .find_account_by_id_without_audit(*deposit_account_id)
-                            .await?;
-                        Some(account.account_holder_id.into())
-                    }
-                    LanaEvent::Deposit(CoreDepositEvent::DepositReverted {
-                        deposit_account_id,
-                        ..
-                    }) => {
+                    LanaEvent::Deposit(
+                        CoreDepositEvent::DepositInitialized {
+                            deposit_account_id, ..
+                        }
+                        | CoreDepositEvent::WithdrawalConfirmed {
+                            deposit_account_id, ..
+                        }
+                        | CoreDepositEvent::DepositReverted {
+                            deposit_account_id, ..
+                        },
+                    ) => {
                         let account = self
                             .deposits
                             .find_account_by_id_without_audit(*deposit_account_id)
@@ -101,16 +87,9 @@ where
 
                 if let Some(customer_id) = customer_id {
                     let activity_date = message.recorded_at;
-
-                    let mut activity = self
-                        .service
-                        .load_activity_by_customer_id(customer_id)
-                        .await?
-                        .unwrap_or_else(|| CustomerActivity::new(customer_id, activity_date));
-
-                    activity.update_activity(activity_date);
-
-                    self.service.persist_activity(&activity).await?;
+                    self.repo
+                        .upsert_activity(customer_id, activity_date)
+                        .await?;
                 }
             }
 
@@ -135,12 +114,12 @@ where
 {
     pub fn new(
         outbox: &Outbox<E>,
-        service: &CustomerActivityService,
+        repo: &CustomerActivityRepo,
         deposits: &CoreDeposit<Perms, E>,
     ) -> Self {
         Self {
             outbox: outbox.clone(),
-            service: service.clone(),
+            repo: repo.clone(),
             deposits: deposits.clone(),
         }
     }
@@ -158,7 +137,7 @@ where
         + OutboxEventMarker<GovernanceEvent>,
 {
     outbox: Outbox<E>,
-    service: CustomerActivityService,
+    repo: CustomerActivityRepo,
     deposits: CoreDeposit<Perms, E>,
 }
 
@@ -174,10 +153,10 @@ where
         + OutboxEventMarker<GovernanceEvent>,
 {
     pub fn new(outbox: &Outbox<E>, pool: sqlx::PgPool, deposits: &CoreDeposit<Perms, E>) -> Self {
-        let service = CustomerActivityService::new(pool);
+        let repo = CustomerActivityRepo::new(pool);
         Self {
             outbox: outbox.clone(),
-            service,
+            repo,
             deposits: deposits.clone(),
         }
     }
@@ -206,7 +185,7 @@ where
     fn init(&self, _: &Job) -> Result<Box<dyn JobRunner>, Box<dyn std::error::Error>> {
         Ok(Box::new(CustomerActivityProjectionJobRunner::new(
             &self.outbox,
-            &self.service,
+            &self.repo,
             &self.deposits,
         )))
     }

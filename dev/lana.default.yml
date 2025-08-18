@@ -40,6 +40,7 @@ app:
       client_id: customer-service-account
       realm: customer
       client_secret: secret
+  customer_activity:
     activity_check_enabled: true
     inactive_threshold_days: 365
     escheatment_threshold_days: 3650
