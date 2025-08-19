@@ -1606,7 +1606,7 @@ dependencies = [
  "serde",
  "sim-time",
  "sqlx",
- "thiserror 2.0.14",
+ "thiserror 2.0.15",
  "tracing",
 ]
 

@@ -219,7 +219,11 @@ where
     ) -> Result<(), Box<dyn std::error::Error>> {
         let customers = self
             .customer_activity_repo
-            .find_customers_with_other_activity_in_range(start_threshold, end_threshold, activity)
+            .find_customers_in_range_with_non_matching_activity(
+                start_threshold,
+                end_threshold,
+                activity,
+            )
             .await?;
         // TODO: Add a batch update for the customers
         for customer_id in customers {

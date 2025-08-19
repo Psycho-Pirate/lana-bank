@@ -2,6 +2,7 @@ use sqlx::PgPool;
 use sqlx::types::uuid;
 
 use crate::primitives::CustomerActivity;
+use crate::time::now;
 use core_customer::CustomerId;
 
 #[derive(Clone)]
@@ -41,23 +42,18 @@ impl CustomerActivityRepo {
         activity_date: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), sqlx::Error> {
         let customer_uuid: uuid::Uuid = customer_id.into();
-        let now = chrono::Utc::now();
-
         sqlx::query!(
             r#"
             INSERT INTO customer_activity (customer_id, last_activity_date, updated_at)
             VALUES ($1, $2, $3)
             ON CONFLICT (customer_id) 
             DO UPDATE SET 
-                last_activity_date = CASE 
-                    WHEN customer_activity.last_activity_date < $2 THEN $2
-                    ELSE customer_activity.last_activity_date
-                END,
+                last_activity_date = GREATEST(COALESCE(customer_activity.last_activity_date, $2), $2),
                 updated_at = $3
             "#,
             customer_uuid,
             activity_date,
-            now
+            now()
         )
         .execute(&self.pool)
         .await?;
@@ -65,7 +61,7 @@ impl CustomerActivityRepo {
         Ok(())
     }
 
-    pub async fn find_customers_with_other_activity_in_range(
+    pub async fn find_customers_in_range_with_non_matching_activity(
         &self,
         start_threshold: chrono::DateTime<chrono::Utc>,
         end_threshold: chrono::DateTime<chrono::Utc>,
