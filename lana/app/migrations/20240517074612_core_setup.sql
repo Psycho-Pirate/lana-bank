@@ -97,6 +97,14 @@ CREATE TABLE core_customer_events (
   UNIQUE(id, sequence)
 );
 
+CREATE TABLE customer_activity (
+  customer_id UUID PRIMARY KEY REFERENCES core_customers(id),
+  last_activity_date TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_customer_activity_last_activity_date ON customer_activity(last_activity_date);
+
 CREATE TABLE core_deposit_accounts (
   id UUID PRIMARY KEY,
   account_holder_id UUID NOT NULL,

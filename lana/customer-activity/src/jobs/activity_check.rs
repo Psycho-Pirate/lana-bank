@@ -163,7 +163,7 @@ where
             now,
             self.config.activity_check_hour,
             self.config.activity_check_minute,
-        );
+        )?;
         Ok(JobCompletion::RescheduleAt(next_run))
     }
 }
@@ -183,8 +183,8 @@ where
     #[instrument(name = "customer_activity_check.perform_check", skip(self), err)]
     async fn perform_activity_check(&self) -> Result<(), Box<dyn std::error::Error>> {
         let now = now();
-        let inactive_threshold = now - Duration::days(self.config.inactive_threshold_days);
-        let escheatment_threshold = now - Duration::days(self.config.escheatment_threshold_days);
+        let inactive_threshold = now - self.config.inactive_threshold_days;
+        let escheatment_threshold = now - self.config.escheatment_threshold_days;
         let min_date = NaiveDate::MIN.and_hms_opt(0, 0, 0).unwrap().and_utc();
 
         self.update_customers_by_activity_and_date_range(
@@ -221,7 +221,7 @@ where
             .customer_activity_repo
             .find_customers_with_other_activity_in_range(start_threshold, end_threshold, activity)
             .await?;
-
+        // TODO: Add a batch update for the customers
         for customer_id in customers {
             self.customers
                 .update_activity_from_system(customer_id, activity)
@@ -232,12 +232,23 @@ where
     }
 }
 
-fn calculate_next_run_time(from_time: DateTime<Utc>, hour: u32, minute: u32) -> DateTime<Utc> {
+fn calculate_next_run_time(
+    from_time: DateTime<Utc>,
+    hours: Duration,
+    minutes: Duration,
+) -> Result<DateTime<Utc>, Box<dyn std::error::Error>> {
     let tomorrow = from_time + Duration::days(1);
-    tomorrow
+    let total_duration = hours + minutes;
+
+    let midnight = tomorrow
         .date_naive()
-        .and_hms_opt(hour, minute, 0)
-        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .ok_or("Failed to create midnight time")?;
+
+    let utc_midnight = midnight
         .and_local_timezone(Utc)
-        .unwrap()
+        .single()
+        .ok_or("Failed to convert midnight to UTC timezone")?;
+
+    Ok(utc_midnight + total_duration)
 }

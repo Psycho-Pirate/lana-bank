@@ -50,7 +50,6 @@ pub enum CustomerEvent {
     },
     ActivityUpdated {
         activity: Activity,
-        audit_info: AuditInfo,
     },
 }
 
@@ -154,20 +153,14 @@ impl Customer {
         Idempotent::Executed(())
     }
 
-    pub(crate) fn update_activity(
-        &mut self,
-        activity: Activity,
-        audit_info: AuditInfo,
-    ) -> Idempotent<()> {
+    pub(crate) fn update_activity(&mut self, activity: Activity) -> Idempotent<()> {
         idempotency_guard!(
             self.events.iter_all().rev(),
             CustomerEvent::ActivityUpdated { activity: existing_activity, .. } if existing_activity == &activity,
             => CustomerEvent::ActivityUpdated { .. }
         );
-        self.events.push(CustomerEvent::ActivityUpdated {
-            activity,
-            audit_info,
-        });
+        self.events
+            .push(CustomerEvent::ActivityUpdated { activity });
         self.activity = activity;
         Idempotent::Executed(())
     }

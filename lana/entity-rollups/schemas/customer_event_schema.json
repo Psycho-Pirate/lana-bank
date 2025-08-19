@@ -227,9 +227,6 @@
         "activity": {
           "$ref": "#/$defs/Activity"
         },
-        "audit_info": {
-          "$ref": "#/$defs/AuditInfo"
-        },
         "type": {
           "const": "activity_updated",
           "type": "string"
@@ -237,8 +234,7 @@
       },
       "required": [
         "type",
-        "activity",
-        "audit_info"
+        "activity"
       ],
       "type": "object"
     }

@@ -55,11 +55,13 @@ pub enum CustomerStatus {
     strum::Display,
     strum::EnumString,
     Default,
+    sqlx::Type,
 )]
 #[cfg_attr(feature = "graphql", derive(async_graphql::Enum))]
 #[cfg_attr(feature = "json-schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
+#[sqlx(type_name = "text")]
 pub enum Activity {
     #[default]
     Disabled,

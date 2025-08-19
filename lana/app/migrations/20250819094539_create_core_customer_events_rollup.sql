@@ -113,7 +113,6 @@ BEGIN
       new_row.email := (NEW.event ->> 'email');
     WHEN 'activity_updated' THEN
       new_row.activity := (NEW.event ->> 'activity');
-      new_row.audit_entry_ids := array_append(COALESCE(current_row.audit_entry_ids, ARRAY[]::BIGINT[]), (NEW.event -> 'audit_info' ->> 'audit_entry_id')::BIGINT);
   END CASE;
 
   INSERT INTO core_customer_events_rollup (

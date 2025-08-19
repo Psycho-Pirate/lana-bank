@@ -569,16 +569,7 @@ where
     ) -> Result<Customer, CustomerError> {
         let mut customer = self.repo.find_by_id(customer_id).await?;
 
-        let audit_info = self
-            .authz
-            .audit()
-            .record_system_entry(
-                CustomerObject::customer(customer_id),
-                CoreCustomerAction::CUSTOMER_UPDATE,
-            )
-            .await?;
-
-        if customer.update_activity(activity, audit_info).did_execute() {
+        if customer.update_activity(activity).did_execute() {
             self.repo.update(&mut customer).await?;
         }
 
