@@ -2011,7 +2011,15 @@ type VisibleNavigationItems {
 type Wallet {
 	id: ID!
 	walletId: UUID!
-	address: String
+	address: String!
+	network: WalletNetwork!
+	custodian: Custodian!
+}
+
+enum WalletNetwork {
+	TESTNET_3
+	TESTNET_4
+	MAINNET
 }
 
 type Withdrawal {

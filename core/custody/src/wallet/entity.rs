@@ -7,7 +7,7 @@ use es_entity::*;
 
 use core_money::Satoshis;
 
-use crate::primitives::{CustodianId, WalletId};
+use crate::primitives::{CustodianId, WalletId, WalletNetwork};
 
 #[derive(EsEvent, Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -16,11 +16,9 @@ pub enum WalletEvent {
     Initialized {
         id: WalletId,
         custodian_id: CustodianId,
-        audit_info: AuditInfo,
-    },
-    ExternalWalletAttached {
-        external_id: String,
+        external_wallet_id: String,
         address: String,
+        network: WalletNetwork,
         custodian_response: serde_json::Value,
         audit_info: AuditInfo,
     },
@@ -36,37 +34,14 @@ pub enum WalletEvent {
 pub struct Wallet {
     pub id: WalletId,
     pub custodian_id: CustodianId,
-    #[builder(setter(into, strip_option), default)]
-    pub external_wallet_id: Option<String>,
+    pub address: String,
+    pub network: WalletNetwork,
+    pub external_wallet_id: String,
 
     events: EntityEvents<WalletEvent>,
 }
 
 impl Wallet {
-    pub fn attach_external_wallet(
-        &mut self,
-        external_id: String,
-        address: String,
-        custodian_response: serde_json::Value,
-        audit_info: &AuditInfo,
-    ) -> Idempotent<()> {
-        idempotency_guard!(
-            self.events.iter_all(),
-            WalletEvent::ExternalWalletAttached { external_id: existing, .. } if existing == &external_id
-        );
-
-        self.external_wallet_id = Some(external_id.clone());
-
-        self.events.push(WalletEvent::ExternalWalletAttached {
-            external_id,
-            address,
-            custodian_response,
-            audit_info: audit_info.clone(),
-        });
-
-        Idempotent::Executed(())
-    }
-
     pub fn update_balance(
         &mut self,
         new_balance: Satoshis,
@@ -87,29 +62,27 @@ impl Wallet {
 
         Idempotent::Executed(())
     }
-
-    pub fn address(&self) -> Option<&str> {
-        self.events.iter_all().find_map(|e| match e {
-            WalletEvent::ExternalWalletAttached { address, .. } => Some(address.as_str()),
-            _ => None,
-        })
-    }
 }
 
 impl TryFromEvents<WalletEvent> for Wallet {
     fn try_from_events(events: EntityEvents<WalletEvent>) -> Result<Self, EsEntityError> {
         let mut builder = WalletBuilder::default();
         for event in events.iter_all() {
-            match event {
-                WalletEvent::Initialized {
-                    id, custodian_id, ..
-                } => {
-                    builder = builder.id(*id).custodian_id(*custodian_id);
-                }
-                WalletEvent::ExternalWalletAttached { external_id, .. } => {
-                    builder = builder.external_wallet_id(external_id.to_owned());
-                }
-                _ => {}
+            if let WalletEvent::Initialized {
+                id,
+                custodian_id,
+                address,
+                network,
+                external_wallet_id,
+                ..
+            } = event
+            {
+                builder = builder
+                    .id(*id)
+                    .custodian_id(*custodian_id)
+                    .address(address.to_owned())
+                    .network(*network)
+                    .external_wallet_id(external_wallet_id.to_owned());
             }
         }
         builder.events(events).build()
@@ -122,8 +95,10 @@ pub struct NewWallet {
     pub(super) id: WalletId,
     #[builder(setter(into))]
     pub(super) custodian_id: CustodianId,
-    #[builder(setter(into, strip_option), default)]
-    pub(super) external_wallet_id: Option<String>,
+    pub(super) custodian_response: serde_json::Value,
+    pub(super) address: String,
+    pub(super) network: WalletNetwork,
+    pub(super) external_wallet_id: String,
     pub(super) audit_info: AuditInfo,
 }
 
@@ -141,6 +116,10 @@ impl IntoEvents<WalletEvent> for NewWallet {
                 id: self.id,
                 custodian_id: self.custodian_id,
                 audit_info: self.audit_info,
+                external_wallet_id: self.external_wallet_id,
+                address: self.address,
+                network: self.network,
+                custodian_response: self.custodian_response,
             }],
         )
     }
