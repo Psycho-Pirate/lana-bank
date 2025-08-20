@@ -1589,6 +1589,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "customer-activity"
+version = "0.3.772-dev"
+dependencies = [
+ "async-trait",
+ "audit",
+ "authz",
+ "chrono",
+ "core-customer",
+ "core-deposit",
+ "es-entity",
+ "futures",
+ "governance",
+ "job",
+ "lana-events",
+ "outbox",
+ "serde",
+ "sim-time",
+ "sqlx",
+ "thiserror 2.0.15",
+ "tracing",
+]
+
+[[package]]
 name = "customer-server"
 version = "0.0.0"
 dependencies = [
@@ -3206,6 +3229,7 @@ dependencies = [
  "core-money",
  "core-price",
  "core-report",
+ "customer-activity",
  "customer-sync",
  "dashboard",
  "deposit-sync",

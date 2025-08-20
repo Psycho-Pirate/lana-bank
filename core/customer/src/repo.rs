@@ -16,6 +16,7 @@ use super::{entity::*, error::*};
         email(ty = "String", list_by),
         telegram_id(ty = "String", list_by),
         status(ty = "CustomerStatus", list_for),
+        activity(ty = "Activity", list_for),
         public_id(ty = "PublicId", list_by)
     ),
     tbl_prefix = "core",

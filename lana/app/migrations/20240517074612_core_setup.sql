@@ -83,6 +83,7 @@ CREATE TABLE core_customers (
   email VARCHAR NOT NULL UNIQUE,
   telegram_id VARCHAR NOT NULL UNIQUE,
   status VARCHAR NOT NULL,
+  activity VARCHAR NOT NULL DEFAULT 'disabled',
   public_id VARCHAR NOT NULL REFERENCES core_public_ids(id),
   created_at TIMESTAMPTZ NOT NULL
 );
@@ -95,6 +96,14 @@ CREATE TABLE core_customer_events (
   recorded_at TIMESTAMPTZ NOT NULL,
   UNIQUE(id, sequence)
 );
+
+CREATE TABLE customer_activity (
+  customer_id UUID PRIMARY KEY REFERENCES core_customers(id),
+  last_activity_date TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_customer_activity_last_activity_date ON customer_activity(last_activity_date);
 
 CREATE TABLE core_deposit_accounts (
   id UUID PRIMARY KEY,
