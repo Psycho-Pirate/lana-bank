@@ -159,11 +159,8 @@ where
         if self.config.activity_check_enabled {
             self.perform_activity_check().await?;
         }
-        let next_run = calculate_next_run_time(
-            now,
-            self.config.activity_check_hour,
-            self.config.activity_check_minute,
-        )?;
+        let (hours, minutes) = self.config.parse_activity_check_time()?;
+        let next_run = calculate_next_run_time(now, hours, minutes)?;
         Ok(JobCompletion::RescheduleAt(next_run))
     }
 }
