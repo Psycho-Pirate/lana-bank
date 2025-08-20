@@ -42,18 +42,10 @@ app:
       client_secret: secret
   customer_activity:
     activity_check_enabled: true
-    inactive_threshold_days:
-    - 31536000
-    - 0
-    escheatment_threshold_days:
-    - 315360000
-    - 0
-    activity_check_hour:
-    - 0
-    - 0
-    activity_check_minute:
-    - 0
-    - 0
+    inactive_threshold_days: 365
+    escheatment_threshold_days: 3650
+    activity_check_hour: 0
+    activity_check_minute: 0
   deposit_sync:
     sumsub_export_enabled: true
   accounting_init:
