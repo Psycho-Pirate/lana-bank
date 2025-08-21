@@ -335,7 +335,7 @@ impl InterestAccrualCycle {
             })
             .in_liquidation_account_id(self.account_ids.in_liquidation_account_id)
             .defaulted_account_id(self.account_ids.interest_defaulted_account_id)
-            .due_date(due_date)
+            .due_date(EffectiveDate::from(due_date))
             .overdue_date(overdue_date)
             .liquidation_date(liquidation_date)
             .effective(effective)
