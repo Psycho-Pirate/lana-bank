@@ -67,7 +67,6 @@ where
     }
 }
 
-#[allow(clippy::large_enum_variant)]
 pub(super) enum ActivationOutcome {
     Ignored(CreditFacility),
     Activated(ActivationData),
@@ -80,7 +79,6 @@ pub(super) struct ActivationData {
     pub audit_info: audit::AuditInfo,
 }
 
-#[allow(clippy::large_enum_variant)]
 pub(super) enum CompletionOutcome {
     Ignored(CreditFacility),
     Completed((CreditFacility, crate::CreditFacilityCompletion)),
@@ -103,7 +101,6 @@ where
         From<CoreCreditObject> + From<GovernanceObject>,
     E: OutboxEventMarker<CoreCreditEvent> + OutboxEventMarker<GovernanceEvent>,
 {
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         pool: &sqlx::PgPool,
         authz: &Perms,
