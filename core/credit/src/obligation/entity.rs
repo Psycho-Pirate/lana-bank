@@ -98,37 +98,49 @@ impl Obligation {
             .expect("entity_first_persisted_at not found")
     }
 
-    pub fn due_at(&self) -> DateTime<Utc> {
-        self.events
+    fn lifecycle_dates(&self) -> ObligationLifecycleTimestamps {
+        let (due, overdue, liquidation, defaulted) = self
+            .events
             .iter_all()
             .find_map(|e| match e {
-                ObligationEvent::Initialized { due_date, .. } => Some(*due_date),
+                ObligationEvent::Initialized {
+                    due_date,
+                    overdue_date,
+                    liquidation_date,
+                    defaulted_date,
+                    ..
+                } => Some((
+                    EffectiveDate::from(*due_date),
+                    overdue_date.map(EffectiveDate::from),
+                    liquidation_date.map(EffectiveDate::from),
+                    defaulted_date.map(EffectiveDate::from),
+                )),
                 _ => None,
             })
-            .expect("Entity was not Initialized")
+            .expect("Entity was not Initialized");
+
+        ObligationLifecycleTimestamps {
+            due: due.start_of_day(),
+            overdue: overdue.map(|d| d.start_of_day()),
+            liquidation: liquidation.map(|d| d.start_of_day()),
+            defaulted: defaulted.map(|d| d.start_of_day()),
+        }
+    }
+
+    pub fn due_at(&self) -> DateTime<Utc> {
+        self.lifecycle_dates().due
     }
 
     pub fn overdue_at(&self) -> Option<DateTime<Utc>> {
-        self.events.iter_all().find_map(|e| match e {
-            ObligationEvent::Initialized { overdue_date, .. } => *overdue_date,
-            _ => None,
-        })
+        self.lifecycle_dates().overdue
     }
 
     pub fn liquidation_at(&self) -> Option<DateTime<Utc>> {
-        self.events.iter_all().find_map(|e| match e {
-            ObligationEvent::Initialized {
-                liquidation_date, ..
-            } => *liquidation_date,
-            _ => None,
-        })
+        self.lifecycle_dates().liquidation
     }
 
     pub fn defaulted_at(&self) -> Option<DateTime<Utc>> {
-        self.events.iter_all().find_map(|e| match e {
-            ObligationEvent::Initialized { defaulted_date, .. } => *defaulted_date,
-            _ => None,
-        })
+        self.lifecycle_dates().defaulted
     }
 
     pub fn not_yet_due_accounts(&self) -> ObligationAccounts {
@@ -245,42 +257,17 @@ impl Obligation {
     }
 
     fn expected_status(&self, now: DateTime<Utc>) -> ObligationStatus {
-        let mut paid = false;
-        let (due_date, overdue_date, defaulted_date) = self
-            .events
-            .iter_all()
-            .rev()
-            .find_map(|e| match e {
-                ObligationEvent::Initialized {
-                    due_date,
-                    overdue_date,
-                    defaulted_date,
-                    ..
-                } => Some((*due_date, *overdue_date, *defaulted_date)),
-                ObligationEvent::Completed { .. } => {
-                    paid = true;
-                    None
-                }
-                _ => None,
-            })
-            .expect("Entity was not Initialized");
-        if paid {
-            return ObligationStatus::Paid;
+        let status = self.status();
+        if status == ObligationStatus::Paid {
+            return status;
         }
 
-        if let Some(defaulted_date) = defaulted_date
-            && now >= defaulted_date
-        {
-            return ObligationStatus::Defaulted;
-        }
-
-        if let Some(overdue_date) = overdue_date
-            && now >= overdue_date
-        {
-            return ObligationStatus::Overdue;
-        }
-
-        if now >= due_date {
+        let dates = self.lifecycle_dates();
+        if dates.defaulted.is_some_and(|d| now >= d) {
+            ObligationStatus::Defaulted
+        } else if dates.overdue.is_some_and(|d| now >= d) {
+            ObligationStatus::Overdue
+        } else if now >= dates.due {
             ObligationStatus::Due
         } else {
             ObligationStatus::NotYetDue
@@ -695,6 +682,13 @@ impl PartialEq for Obligation {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
+}
+
+struct ObligationLifecycleTimestamps {
+    due: DateTime<Utc>,
+    overdue: Option<DateTime<Utc>>,
+    liquidation: Option<DateTime<Utc>>,
+    defaulted: Option<DateTime<Utc>>,
 }
 
 #[cfg(test)]
