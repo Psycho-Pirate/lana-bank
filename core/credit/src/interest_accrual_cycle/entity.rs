@@ -52,7 +52,7 @@ pub enum InterestAccrualCycleEvent {
         facility_id: CreditFacilityId,
         idx: InterestAccrualCycleIdx,
         period: InterestPeriod,
-        facility_matures_at: DateTime<Utc>,
+        facility_maturity_date: EffectiveDate,
         account_ids: InterestAccrualCycleAccountIds,
         terms: TermValues,
         audit_info: AuditInfo,
@@ -81,7 +81,7 @@ pub struct InterestAccrualCycle {
     pub credit_facility_id: CreditFacilityId,
     pub account_ids: InterestAccrualCycleAccountIds,
     pub idx: InterestAccrualCycleIdx,
-    pub facility_matures_at: DateTime<Utc>,
+    pub facility_maturity_date: EffectiveDate,
     pub terms: TermValues,
     pub period: InterestPeriod,
     events: EntityEvents<InterestAccrualCycleEvent>,
@@ -122,7 +122,7 @@ impl TryFromEvents<InterestAccrualCycleEvent> for InterestAccrualCycle {
                     account_ids,
                     idx,
                     period,
-                    facility_matures_at,
+                    facility_maturity_date,
                     terms,
                     ..
                 } => {
@@ -132,7 +132,7 @@ impl TryFromEvents<InterestAccrualCycleEvent> for InterestAccrualCycle {
                         .account_ids(*account_ids)
                         .idx(*idx)
                         .period(*period)
-                        .facility_matures_at(*facility_matures_at)
+                        .facility_maturity_date(*facility_maturity_date)
                         .terms(*terms)
                 }
                 InterestAccrualCycleEvent::InterestAccrued { .. } => (),
@@ -144,13 +144,14 @@ impl TryFromEvents<InterestAccrualCycleEvent> for InterestAccrualCycle {
 }
 
 impl InterestAccrualCycle {
-    fn accrual_cycle_ends_at(&self) -> DateTime<Utc> {
+    fn accrual_cycle_ends_at(&self) -> EffectiveDate {
         self.terms
             .accrual_cycle_interval
             .period_from(self.period.start)
-            .truncate(self.facility_matures_at)
-            .expect("'period.start' should be before 'facility_matures_at'")
+            .truncate(self.facility_maturity_date.start_of_day())
+            .expect("'period.start' should be before 'facility_maturity_date'")
             .end
+            .into()
     }
 
     fn total_accrued(&self) -> UsdCents {
@@ -179,7 +180,7 @@ impl InterestAccrualCycle {
             Some(accrued_at) => interval.period_from(accrued_at).next(),
             None => interval.period_from(self.period.start),
         }
-        .truncate(self.accrual_cycle_ends_at())
+        .truncate(self.accrual_cycle_ends_at().end_of_day())
     }
 
     pub(crate) fn is_completed(&self) -> bool {
@@ -211,7 +212,7 @@ impl InterestAccrualCycle {
             None => accrual_interval.period_from(self.period.start),
         };
 
-        untruncated_period.truncate(self.accrual_cycle_ends_at())
+        untruncated_period.truncate(self.accrual_cycle_ends_at().end_of_day())
     }
 
     pub(crate) fn record_accrual(
@@ -254,7 +255,7 @@ impl InterestAccrualCycle {
 
         match last_accrual_period
             .next()
-            .truncate(self.accrual_cycle_ends_at())
+            .truncate(self.accrual_cycle_ends_at().end_of_day())
         {
             Some(_) => None,
             None => {
@@ -334,7 +335,7 @@ impl InterestAccrualCycle {
             })
             .in_liquidation_account_id(self.account_ids.in_liquidation_account_id)
             .defaulted_account_id(self.account_ids.interest_defaulted_account_id)
-            .due_date(EffectiveDate::from(due_date))
+            .due_date(due_date)
             .overdue_date(overdue_date)
             .liquidation_date(liquidation_date)
             .effective(effective)
@@ -365,7 +366,7 @@ pub struct NewInterestAccrualCycle {
     pub account_ids: InterestAccrualCycleAccountIds,
     pub idx: InterestAccrualCycleIdx,
     pub period: InterestPeriod,
-    pub facility_matures_at: DateTime<Utc>,
+    pub facility_maturity_date: EffectiveDate,
     terms: TermValues,
     #[builder(setter(into))]
     audit_info: AuditInfo,
@@ -391,7 +392,7 @@ impl IntoEvents<InterestAccrualCycleEvent> for NewInterestAccrualCycle {
                 account_ids: self.account_ids,
                 idx: self.idx,
                 period: self.period,
-                facility_matures_at: self.facility_matures_at,
+                facility_maturity_date: self.facility_maturity_date,
                 terms: self.terms,
                 audit_info: self.audit_info,
             }],
@@ -474,7 +475,7 @@ mod test {
             account_ids: CreditFacilityAccountIds::new().into(),
             idx: InterestAccrualCycleIdx::FIRST,
             period: default_period(),
-            facility_matures_at: terms.duration.maturity_date(started_at),
+            facility_maturity_date: terms.duration.maturity_date(started_at),
             terms,
             audit_info: dummy_audit_info(),
         }]
@@ -596,11 +597,11 @@ mod test {
     fn next_accrual_period_at_end() {
         let mut events = initial_events();
 
-        let facility_matures_at = default_terms().duration.maturity_date(default_started_at());
+        let facility_maturity_date = default_terms().duration.maturity_date(default_started_at());
         let final_accrual_period = default_terms()
             .accrual_cycle_interval
             .period_from(default_started_at())
-            .truncate(facility_matures_at)
+            .truncate(facility_maturity_date.start_of_day())
             .unwrap();
         let final_accrual_at = final_accrual_period.end;
 

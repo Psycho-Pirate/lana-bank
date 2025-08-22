@@ -10,7 +10,7 @@ use outbox::OutboxEventMarker;
 use public_id::PublicIds;
 
 use crate::{
-    EffectiveDate, Jobs,
+    Jobs,
     credit_facility::{CreditFacilities, CreditFacility},
     disbursal::{Disbursals, NewDisbursal},
     error::CoreCreditError,
@@ -104,7 +104,9 @@ where
                 next_accrual_period,
                 audit_info,
             }) => {
-                let due_date = credit_facility.matures_at.expect("Facility is not active");
+                let due_date = credit_facility
+                    .maturity_date
+                    .expect("Facility is not active");
                 let overdue_date = credit_facility
                     .terms
                     .obligation_overdue_duration_from_due
@@ -132,7 +134,7 @@ where
                         .amount(credit_facility.structuring_fee())
                         .account_ids(credit_facility.account_ids)
                         .disbursal_credit_account_id(credit_facility.disbursal_credit_account_id)
-                        .due_date(EffectiveDate::from(due_date))
+                        .due_date(due_date)
                         .overdue_date(overdue_date)
                         .liquidation_date(liquidation_date)
                         .audit_info(audit_info.clone())

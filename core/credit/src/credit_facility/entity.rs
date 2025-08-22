@@ -179,7 +179,7 @@ pub struct CreditFacility {
     #[builder(setter(strip_option), default)]
     pub activated_at: Option<DateTime<Utc>>,
     #[builder(setter(strip_option), default)]
-    pub matures_at: Option<DateTime<Utc>>,
+    pub maturity_date: Option<EffectiveDate>,
 
     #[es_entity(nested)]
     #[builder(default)]
@@ -212,6 +212,10 @@ impl CreditFacility {
         self.events
             .entity_first_persisted_at()
             .expect("entity_first_persisted_at not found")
+    }
+
+    pub fn matures_at(&self) -> Option<DateTime<Utc>> {
+        self.maturity_date.map(|d| d.start_of_day())
     }
 
     pub fn structuring_fee(&self) -> UsdCents {
@@ -328,7 +332,7 @@ impl CreditFacility {
         }
 
         self.activated_at = Some(activated_at);
-        self.matures_at = Some(self.terms.duration.maturity_date(activated_at));
+        self.maturity_date = Some(self.terms.duration.maturity_date(activated_at));
         let tx_id = LedgerTxId::new();
         self.events.push(CreditFacilityEvent::Activated {
             ledger_tx_id: tx_id,
@@ -353,7 +357,7 @@ impl CreditFacility {
     }
 
     pub(crate) fn check_disbursal_date(&self, initiated_at: DateTime<Utc>) -> bool {
-        initiated_at < self.matures_at.expect("Facility not activated yet")
+        initiated_at < self.matures_at().expect("Facility not activated yet")
     }
 
     fn last_started_accrual_cycle(&self) -> Option<InterestAccrualCycleInCreditFacility> {
@@ -401,7 +405,7 @@ impl CreditFacility {
             ),
         };
 
-        Ok(full_period.truncate(self.matures_at.expect("Facility is already active")))
+        Ok(full_period.truncate(self.matures_at().expect("Facility is already active")))
     }
 
     fn next_interest_accrual_cycle_idx(&self) -> InterestAccrualCycleIdx {
@@ -451,7 +455,7 @@ impl CreditFacility {
             .account_ids(self.account_ids.into())
             .idx(idx)
             .period(accrual_cycle_period)
-            .facility_matures_at(self.matures_at.expect("Facility is already approved"))
+            .facility_maturity_date(self.maturity_date.expect("Facility is already approved"))
             .terms(self.terms)
             .audit_info(audit_info)
             .build()
@@ -686,11 +690,13 @@ impl TryFromEvents<CreditFacilityEvent> for CreditFacility {
                         .public_id(public_id.clone())
                 }
                 CreditFacilityEvent::Activated { activated_at, .. } => {
-                    let matures_at = terms
+                    let maturity_date = terms
                         .expect("terms should be set")
                         .duration
                         .maturity_date(*activated_at);
-                    builder = builder.activated_at(*activated_at).matures_at(matures_at)
+                    builder = builder
+                        .activated_at(*activated_at)
+                        .maturity_date(maturity_date)
                 }
                 CreditFacilityEvent::ApprovalProcessConcluded { .. } => (),
                 CreditFacilityEvent::InterestAccrualCycleStarted { .. } => (),
@@ -973,7 +979,7 @@ mod test {
                 audit_info: dummy_audit_info(),
                 activated_at,
             });
-            let matures_at = facility_from(events.clone()).matures_at.unwrap();
+            let matures_at = facility_from(events.clone()).matures_at().unwrap();
             let final_interest_period =
                 InterestInterval::EndOfMonth.period_from(matures_at - chrono::Duration::days(1));
             events.push(CreditFacilityEvent::InterestAccrualCycleStarted {
@@ -1096,7 +1102,7 @@ mod test {
     fn check_activated_at() {
         let mut credit_facility = facility_from(initial_events());
         assert_eq!(credit_facility.activated_at, None);
-        assert_eq!(credit_facility.matures_at, None);
+        assert_eq!(credit_facility.matures_at(), None);
 
         let approval_time = Utc::now();
 
@@ -1113,7 +1119,7 @@ mod test {
                 .did_execute()
         );
         assert_eq!(credit_facility.activated_at, Some(approval_time));
-        assert!(credit_facility.matures_at.is_some())
+        assert!(credit_facility.matures_at().is_some())
     }
 
     #[test]

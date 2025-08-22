@@ -98,11 +98,12 @@ impl From<FacilityDurationType> for DisbursedReceivableAccountCategory {
 }
 
 impl FacilityDuration {
-    pub fn maturity_date(&self, start_date: DateTime<Utc>) -> DateTime<Utc> {
+    pub fn maturity_date(&self, start_date: DateTime<Utc>) -> EffectiveDate {
         match self {
             FacilityDuration::Months(months) => start_date
                 .checked_add_months(chrono::Months::new(*months))
-                .expect("should return a maturity date"),
+                .expect("should return a maturity date")
+                .into(),
         }
     }
 
@@ -127,12 +128,11 @@ pub enum ObligationDuration {
 }
 
 impl ObligationDuration {
-    pub fn end_date(&self, start_date: DateTime<Utc>) -> EffectiveDate {
+    pub fn end_date(&self, start_date: EffectiveDate) -> EffectiveDate {
         match self {
             Self::Days(days) => start_date
                 .checked_add_days(chrono::Days::new(*days))
-                .expect("should return an end date")
-                .into(),
+                .expect("should return an end date"),
         }
     }
 }
@@ -551,7 +551,10 @@ mod test {
     fn maturity_date() {
         let start_date = "2024-12-03T14:00:00Z".parse::<DateTime<Utc>>().unwrap();
         let duration = FacilityDuration::Months(3);
-        let maturity_date = "2025-03-03T14:00:00Z".parse::<DateTime<Utc>>().unwrap();
+        let maturity_date = "2025-03-03T14:00:00Z"
+            .parse::<DateTime<Utc>>()
+            .unwrap()
+            .into();
         assert_eq!(duration.maturity_date(start_date), maturity_date);
     }
 

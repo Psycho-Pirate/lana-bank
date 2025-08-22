@@ -614,7 +614,7 @@ pub enum DisbursedReceivableAccountCategory {
     Overdue,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-schema", derive(JsonSchema))]
 pub struct EffectiveDate(chrono::NaiveDate);
 
@@ -647,5 +647,9 @@ impl EffectiveDate {
                 .and_hms_opt(00, 00, 00)
                 .expect("00:00:00 was invalid"),
         )
+    }
+
+    pub fn checked_add_days(&self, days: chrono::Days) -> Option<Self> {
+        self.0.checked_add_days(days).map(Self)
     }
 }

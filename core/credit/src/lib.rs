@@ -600,7 +600,7 @@ where
 
         let mut db = self.facilities.begin_op().await?;
         let disbursal_id = DisbursalId::new();
-        let due_date = facility.matures_at.expect("Facility is not active");
+        let due_date = facility.maturity_date.expect("Facility is not active");
         let overdue_date = facility
             .terms
             .obligation_overdue_duration_from_due
@@ -622,7 +622,7 @@ where
             .amount(amount)
             .account_ids(facility.account_ids)
             .disbursal_credit_account_id(facility.disbursal_credit_account_id)
-            .due_date(EffectiveDate::from(due_date))
+            .due_date(due_date)
             .overdue_date(overdue_date)
             .liquidation_date(liquidation_date)
             .audit_info(audit_info)

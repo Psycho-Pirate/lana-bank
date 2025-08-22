@@ -93,12 +93,12 @@ impl CreditFacilityRepaymentPlan {
                     .accrual_cycle_interval
                     .period_from(last_interest_payment)
                     .next()
-                    .truncate(maturity_date)
+                    .truncate(maturity_date.start_of_day())
             } else {
                 terms
                     .accrual_cycle_interval
                     .period_from(activated_at)
-                    .truncate(maturity_date)
+                    .truncate(maturity_date.start_of_day())
             };
 
         let disbursed_outstanding = updated_entries
@@ -126,14 +126,14 @@ impl CreditFacilityRepaymentPlan {
                 initial: interest,
                 outstanding: interest,
 
-                due_at: period.end,
+                due_at: EffectiveDate::from(period.end),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: period.end,
                 effective: period.end.date_naive(),
             });
 
-            next_interest_period = period.next().truncate(maturity_date);
+            next_interest_period = period.next().truncate(maturity_date.start_of_day());
         }
 
         planned_interest_entries
@@ -176,8 +176,8 @@ impl CreditFacilityRepaymentPlan {
                     outstanding: *amount,
 
                     due_at: *due_at,
-                    overdue_at: *overdue_at,
-                    defaulted_at: *defaulted_at,
+                    overdue_at: overdue_at.map(EffectiveDate::from),
+                    defaulted_at: defaulted_at.map(EffectiveDate::from),
                     recorded_at: *recorded_at,
                     effective: *effective,
                 };
@@ -452,7 +452,7 @@ mod tests {
                 ledger_tx_id: LedgerTxId::new(),
                 amount: UsdCents::ZERO,
                 period,
-                due_at: period.end,
+                due_at: EffectiveDate::from(period.end),
                 recorded_at: period.end,
                 effective: period.end.date_naive(),
             },
@@ -491,7 +491,7 @@ mod tests {
                 ledger_tx_id: LedgerTxId::new(),
                 amount: UsdCents::ZERO,
                 period: period_1,
-                due_at: period_1.end,
+                due_at: EffectiveDate::from(period_1.end),
                 recorded_at: period_1.end,
                 effective: period_1.end.date_naive(),
             },
@@ -500,7 +500,7 @@ mod tests {
                 ledger_tx_id: LedgerTxId::new(),
                 amount: UsdCents::ZERO,
                 period: period_2,
-                due_at: period_2.end,
+                due_at: EffectiveDate::from(period_2.end),
                 recorded_at: period_2.end,
                 effective: period_2.end.date_naive(),
             },
@@ -538,7 +538,7 @@ mod tests {
                 obligation_type: ObligationType::Disbursal,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(100_000_00),
-                due_at: default_start_date(),
+                due_at: EffectiveDate::from(default_start_date()),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at,
@@ -579,7 +579,7 @@ mod tests {
                 obligation_type: ObligationType::Disbursal,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(100_000_00),
-                due_at: disbursal_recorded_at,
+                due_at: EffectiveDate::from(disbursal_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: disbursal_recorded_at,
@@ -590,7 +590,7 @@ mod tests {
                 obligation_type: ObligationType::Interest,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(1_000_00),
-                due_at: interest_recorded_at,
+                due_at: EffectiveDate::from(interest_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: interest_recorded_at,
@@ -633,7 +633,7 @@ mod tests {
                 obligation_type: ObligationType::Disbursal,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(100_000_00),
-                due_at: disbursal_recorded_at,
+                due_at: EffectiveDate::from(disbursal_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: disbursal_recorded_at,
@@ -644,7 +644,7 @@ mod tests {
                 obligation_type: ObligationType::Interest,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(1_000_00),
-                due_at: interest_recorded_at,
+                due_at: EffectiveDate::from(interest_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: interest_recorded_at,
@@ -711,7 +711,7 @@ mod tests {
                 obligation_type: ObligationType::Disbursal,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(100_000_00),
-                due_at: disbursal_recorded_at,
+                due_at: EffectiveDate::from(disbursal_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: disbursal_recorded_at,
@@ -722,7 +722,7 @@ mod tests {
                 obligation_type: ObligationType::Interest,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(1_000_00),
-                due_at: interest_recorded_at,
+                due_at: EffectiveDate::from(interest_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: interest_recorded_at,
@@ -814,7 +814,7 @@ mod tests {
                 obligation_type: ObligationType::Disbursal,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(100_000_00),
-                due_at: disbursal_recorded_at,
+                due_at: EffectiveDate::from(disbursal_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: disbursal_recorded_at,
@@ -825,7 +825,7 @@ mod tests {
                 obligation_type: ObligationType::Interest,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(1_000_00),
-                due_at: interest_1_recorded_at,
+                due_at: EffectiveDate::from(interest_1_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: interest_1_recorded_at,
@@ -836,7 +836,7 @@ mod tests {
                 obligation_type: ObligationType::Interest,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(1_000_00),
-                due_at: interest_2_recorded_at,
+                due_at: EffectiveDate::from(interest_2_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: interest_2_recorded_at,
@@ -847,7 +847,7 @@ mod tests {
                 obligation_type: ObligationType::Interest,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(1_000_00),
-                due_at: interest_3_recorded_at,
+                due_at: EffectiveDate::from(interest_3_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: interest_3_recorded_at,
@@ -858,7 +858,7 @@ mod tests {
                 obligation_type: ObligationType::Interest,
                 credit_facility_id: CreditFacilityId::new(),
                 amount: UsdCents::from(33_00),
-                due_at: interest_4_recorded_at,
+                due_at: EffectiveDate::from(interest_4_recorded_at),
                 overdue_at: None,
                 defaulted_at: None,
                 recorded_at: interest_4_recorded_at,
