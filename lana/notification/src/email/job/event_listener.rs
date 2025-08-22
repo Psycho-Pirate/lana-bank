@@ -11,19 +11,61 @@ use outbox::Outbox;
 use crate::email::EmailNotification;
 
 #[derive(Serialize, Deserialize)]
-pub struct EmailEventListenerConfig;
+pub struct EmailEventListenerConfig<AuthzType>(std::marker::PhantomData<AuthzType>);
 
-impl JobConfig for EmailEventListenerConfig {
-    type Initializer = EmailEventListenerInit;
+impl<AuthzType> Default for EmailEventListenerConfig<AuthzType> {
+    fn default() -> Self {
+        Self(std::marker::PhantomData)
+    }
 }
 
-pub struct EmailEventListenerInit {
+impl<AuthzType> JobConfig for EmailEventListenerConfig<AuthzType>
+where
+    AuthzType: authz::PermissionCheck + Clone + Send + Sync + 'static,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Action: From<core_credit::CoreCreditAction>
+        + From<core_customer::CoreCustomerAction>
+        + From<core_access::CoreAccessAction>
+        + From<governance::GovernanceAction>
+        + From<core_custody::CoreCustodyAction>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Object: From<core_credit::CoreCreditObject>
+        + From<core_customer::CustomerObject>
+        + From<core_access::CoreAccessObject>
+        + From<governance::GovernanceObject>
+        + From<core_custody::CoreCustodyObject>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Subject:
+        From<core_access::UserId>,
+{
+    type Initializer = EmailEventListenerInit<AuthzType>;
+}
+
+pub struct EmailEventListenerInit<AuthzType>
+where
+    AuthzType: authz::PermissionCheck,
+{
     outbox: Outbox<LanaEvent>,
-    email_notification: EmailNotification,
+    email_notification: EmailNotification<AuthzType>,
 }
 
-impl EmailEventListenerInit {
-    pub fn new(outbox: &Outbox<LanaEvent>, email_notification: &EmailNotification) -> Self {
+impl<AuthzType> EmailEventListenerInit<AuthzType>
+where
+    AuthzType: authz::PermissionCheck + Clone + Send + Sync + 'static,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Action: From<core_credit::CoreCreditAction>
+        + From<core_customer::CoreCustomerAction>
+        + From<core_access::CoreAccessAction>
+        + From<governance::GovernanceAction>
+        + From<core_custody::CoreCustodyAction>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Object: From<core_credit::CoreCreditObject>
+        + From<core_customer::CustomerObject>
+        + From<core_access::CoreAccessObject>
+        + From<governance::GovernanceObject>
+        + From<core_custody::CoreCustodyObject>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Subject:
+        From<core_access::UserId>,
+{
+    pub fn new(
+        outbox: &Outbox<LanaEvent>,
+        email_notification: &EmailNotification<AuthzType>,
+    ) -> Self {
         Self {
             outbox: outbox.clone(),
             email_notification: email_notification.clone(),
@@ -32,7 +74,22 @@ impl EmailEventListenerInit {
 }
 
 const EMAIL_LISTENER_JOB: JobType = JobType::new("email-listener");
-impl JobInitializer for EmailEventListenerInit {
+impl<AuthzType> JobInitializer for EmailEventListenerInit<AuthzType>
+where
+    AuthzType: authz::PermissionCheck + Clone + Send + Sync + 'static,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Action: From<core_credit::CoreCreditAction>
+        + From<core_customer::CoreCustomerAction>
+        + From<core_access::CoreAccessAction>
+        + From<governance::GovernanceAction>
+        + From<core_custody::CoreCustodyAction>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Object: From<core_credit::CoreCreditObject>
+        + From<core_customer::CustomerObject>
+        + From<core_access::CoreAccessObject>
+        + From<governance::GovernanceObject>
+        + From<core_custody::CoreCustodyObject>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Subject:
+        From<core_access::UserId>,
+{
     fn job_type() -> JobType {
         EMAIL_LISTENER_JOB
     }
@@ -54,13 +111,31 @@ struct EmailEventListenerJobData {
     sequence: outbox::EventSequence,
 }
 
-pub struct EmailEventListenerRunner {
+pub struct EmailEventListenerRunner<AuthzType>
+where
+    AuthzType: authz::PermissionCheck,
+{
     outbox: Outbox<LanaEvent>,
-    email_notification: EmailNotification,
+    email_notification: EmailNotification<AuthzType>,
 }
 
 #[async_trait]
-impl JobRunner for EmailEventListenerRunner {
+impl<AuthzType> JobRunner for EmailEventListenerRunner<AuthzType>
+where
+    AuthzType: authz::PermissionCheck + Clone + Send + Sync + 'static,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Action: From<core_credit::CoreCreditAction>
+        + From<core_customer::CoreCustomerAction>
+        + From<core_access::CoreAccessAction>
+        + From<governance::GovernanceAction>
+        + From<core_custody::CoreCustodyAction>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Object: From<core_credit::CoreCreditObject>
+        + From<core_customer::CustomerObject>
+        + From<core_access::CoreAccessObject>
+        + From<governance::GovernanceObject>
+        + From<core_custody::CoreCustodyObject>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Subject:
+        From<core_access::UserId>,
+{
     async fn run(
         &self,
         mut current_job: CurrentJob,
@@ -85,7 +160,22 @@ impl JobRunner for EmailEventListenerRunner {
     }
 }
 
-impl EmailEventListenerRunner {
+impl<AuthzType> EmailEventListenerRunner<AuthzType>
+where
+    AuthzType: authz::PermissionCheck + Clone + Send + Sync + 'static,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Action: From<core_credit::CoreCreditAction>
+        + From<core_customer::CoreCustomerAction>
+        + From<core_access::CoreAccessAction>
+        + From<governance::GovernanceAction>
+        + From<core_custody::CoreCustodyAction>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Object: From<core_credit::CoreCreditObject>
+        + From<core_customer::CustomerObject>
+        + From<core_access::CoreAccessObject>
+        + From<governance::GovernanceObject>
+        + From<core_custody::CoreCustodyObject>,
+    <<AuthzType as authz::PermissionCheck>::Audit as audit::AuditSvc>::Subject:
+        From<core_access::UserId>,
+{
     async fn handle_event(
         &self,
         op: &mut impl es_entity::AtomicOperation,
