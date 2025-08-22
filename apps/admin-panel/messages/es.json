@@ -41,7 +41,7 @@
     },
     "accounting_writer": {
       "label": "Editor de contabilidad",
-      "description": "Puede crear y gestionar planes de cuentas, transacciones manuales y del libro mayor, balances, informes de pérdidas y ganancias, y datos contables relacionados"
+      "description": "Puede crear y gestionar planes de cuentas, transacciones manuales y del libro mayor, balances, informes del estado de resultados, y datos contables relacionados"
     },
     "audit_viewer": {
       "label": "Visor de auditoría",
@@ -121,7 +121,7 @@
       "loans": "Préstamos",
       "transactions": "Transacciones",
       "administration": "Administración",
-      "financialReports": "Informes Financieros",
+      "financialReports": "Reportes",
       "accounting": "Contabilidad",
       "governance": "Gobernanza"
     },
@@ -139,10 +139,10 @@
       "committees": "Comités",
       "chartOfAccounts": "Catálogo de Cuentas",
       "ledgerAccounts": "Cuentas del libro mayor",
-      "journal": "Diario",
+      "journal": "Registros Contables",
       "users": "Usuarios",
       "balanceSheet": "Balance General",
-      "profitAndLoss": "Pérdidas y Ganancias",
+      "profitAndLoss": "Estado de Resultados",
       "regulatoryReporting": "Informes Regulatorios",
       "trialBalance": "Balance de Comprobación",
       "modules": "Módulos",
@@ -276,7 +276,7 @@
         },
         "labels": {
           "email": "Correo electrónico",
-          "createdOn": "Creado el",
+          "createdOn": "Fecha de registro",
           "telegram": "Telegram",
           "status": "Estado",
           "customerType": "Tipo",
@@ -406,7 +406,7 @@
             "outstandingBalance": "Saldo Pendiente",
             "collateralBtc": "Garantía (BTC)",
             "collateralizationState": "Estado de Colateralización",
-            "createdAt": "Creado El"
+            "createdAt": "Fecha de registro"
           }
         }
       },
@@ -448,7 +448,7 @@
         "outstanding": "Pendiente",
         "collateralizationState": "Estado",
         "cvl": "CVL",
-        "createdAt": "Creado El"
+        "createdAt": "Fecha de registro"
       }
     },
     "CreditFacilityStatus": {
@@ -500,7 +500,7 @@
         "description": "Desembolsos asociados con esta línea de crédito",
         "columns": {
           "amount": "Monto",
-          "createdAt": "Creado El",
+          "createdAt": "Fecha de registro",
           "status": "Estado"
         },
         "messages": {
@@ -513,7 +513,7 @@
         "columns": {
           "entryType": "Tipo de entrada",
           "recordedAt": "Registrado El",
-          "effective": "Fecha efectiva",
+          "effective": "Fecha valor",
           "amount": "Monto"
         },
         "entryTypes": {
@@ -672,7 +672,7 @@
         "form": {
           "labels": {
             "amount": "Monto",
-            "effectiveDate": "Fecha efectiva"
+            "effectiveDate": "Fecha valor"
           },
           "placeholders": {
             "amount": "Ingrese el monto principal deseado"
@@ -815,7 +815,7 @@
         "title": "Plantilla de Términos",
         "fields": {
           "name": "Nombre",
-          "createdAt": "Creado El",
+          "createdAt": "Fecha de registro",
           "duration": "Duración",
           "annualRate": "Tasa Anual",
           "initialCvl": "CVL Inicial (%)",
@@ -975,7 +975,7 @@
       "detailsCard": {
         "title": "Comité",
         "fields": {
-          "createdAt": "Creado El",
+          "createdAt": "Fecha de registro",
           "name": "Nombre",
           "totalMembers": "Total de Miembros"
         },
@@ -1292,7 +1292,7 @@
         "title": "Aprobar Proceso",
         "fields": {
           "processType": "Tipo de Proceso",
-          "createdAt": "Creado El"
+          "createdAt": "Fecha de registro"
         },
         "buttons": {
           "approve": "Aprobar"
@@ -1308,7 +1308,7 @@
         "title": "Rechazar Proceso",
         "fields": {
           "processType": "Tipo de Proceso",
-          "createdAt": "Creado El",
+          "createdAt": "Fecha de registro",
           "reasonLabel": "Razón del Rechazo"
         },
         "placeholders": {
@@ -1401,7 +1401,7 @@
     "userDetails": {
       "title": "Usuario",
       "fields": {
-        "createdAt": "Creado El",
+        "createdAt": "Fecha de registro",
         "email": "Correo Electrónico",
         "role": "Rol"
       },
@@ -1617,7 +1617,7 @@
     }
   },
   "dateTime": {
-    "created": "Creado el {date}",
+    "created": "Fecha de registro {date}",
     "format": {
       "short": "d 'de' MMMM 'de' yyyy, HH:mm"
     }
@@ -1640,7 +1640,7 @@
       "termsTemplate": "Plantilla de Términos",
       "committee": "Comité",
       "custodian": "Agregar Custodio",
-      "executeManualTransaction": "Ejecutar transacción manual",
+      "executeManualTransaction": "Registrar partida manual",
       "role": "Rol",
       "account": "Cuenta"
     }
@@ -1734,9 +1734,9 @@
       "chartOfAccountsExpensesCode": "Código de gastos"
     },
     "profitAndLoss": {
-      "title": "Pérdidas y ganancias",
-      "description": "Configuración del estado de pérdidas y ganancias",
-      "setTitle": "Establecer configuración de pérdidas y ganancias",
+      "title": "Estado de resultados",
+      "description": "Configuración del estado de resultados",
+      "setTitle": "Establecer configuración del estado de resultados",
       "chartOfAccountsId": "ID del catálogo de cuentas",
       "chartOfAccountsRevenueCode": "Código de ingresos",
       "chartOfAccountsCostOfRevenueCode": "Código de costo de ingresos",
@@ -1810,9 +1810,9 @@
     }
   },
   "Journal": {
-    "title": "Diario",
-    "description": "Un registro completo de transacciones financieras en el diario",
-    "noTableData": "No hay entradas presentes en el diario",
+    "title": "Registros Contables",
+    "description": "Un registro completo de partidas contables",
+    "noTableData": "No hay registros contables",
     "table": {
       "createdAt": "Fecha de creación",
       "entryType": "Tipo de entrada",
@@ -1821,7 +1821,7 @@
       "direction": "Dirección",
       "amount": "Monto",
       "description": "Descripción",
-      "effective": "Fecha efectiva",
+      "effective": "Fecha valor",
       "closestAccountWithCode": "Código de cuenta principal"
     },
     "debitOrCredit": {
@@ -1830,16 +1830,16 @@
     }
   },
   "LedgerTransaction": {
-    "title": "Transacción del libro mayor",
-    "description": "Un registro de una transacción financiera en el libro mayor",
+    "title": "Partida contable",
+    "description": "Un registro de una partida contable en el libro mayor",
     "noEntries": "Sin asientos",
     "details": {
       "description": "Descripción",
-      "createdAt": "Creado el",
-      "effective": "Fecha efectiva"
+      "createdAt": "Fecha de registro",
+      "effective": "Fecha valor"
     },
     "entriesTitle": "Asientos contables",
-    "entriesDescription": "Asientos asociados con esta transacción",
+    "entriesDescription": "Asientos asociados con esta partida",
     "table": {
       "entryType": "Tipo de asiento",
       "debit": "Débito",
@@ -1850,26 +1850,26 @@
     }
   },
   "ManualTransactions": {
-    "title": "Ejecutar transacción manual",
-    "description": "Crea una transacción manual proporcionando los detalles requeridos",
+    "title": "Registrar partida manual",
+    "description": "Crea una partida manual proporcionando los detalles requeridos",
     "fields": {
-      "description": "Descripción de la transacción",
-      "reference": "Referencia de la transacción",
-      "effective": "Fecha efectiva",
-      "entries": "Asientos contables para esta transacción",
+      "description": "Descripción de la partida",
+      "reference": "Referencia de la partida",
+      "effective": "Fecha valor",
+      "entries": "Asientos contables para esta partida",
       "usd": "USD",
       "btc": "BTC",
       "debit": "Débito",
       "credit": "Crédito"
     },
     "placeholders": {
-      "description": "Ingrese la descripción de la transacción",
-      "reference": "Ingrese la referencia de la transacción",
-      "effective": "Seleccionar fecha efectiva"
+      "description": "Ingrese la descripción de la partida",
+      "reference": "Ingrese la referencia de la partida",
+      "effective": "Seleccionar fecha valor"
     },
-    "noEntries": "No hay asientos contables para esta transacción. Por favor, añada uno.",
+    "noEntries": "No hay asientos contables para esta partida. Por favor, añada uno.",
     "addEntryBtn": "Añadir",
-    "execute": "Ejecutar",
+    "execute": "Registrar",
     "placeholdersJournalEntry": {
       "accountRef": "Introduce la referencia de cuenta",
       "currency": "Seleccione moneda",
@@ -1884,8 +1884,8 @@
       "direction": "Dirección",
       "description": "Descripción"
     },
-    "errored": "Ocurrió un error al ejecutar la transacción",
-    "success": "Transacción ejecutada con éxito"
+    "errored": "Ocurrió un error al registrar la partida",
+    "success": "Partida registrada con éxito"
   },
   "TransactionTemplates": {
     "title": "Plantillas de transacciones",
@@ -1899,7 +1899,7 @@
     "table": {
       "noData": "No se encontraron transacciones contables para este código de plantilla",
       "headers": {
-        "createdAt": "Creado el",
+        "createdAt": "Fecha de registro",
         "description": "Descripción"
       }
     }
@@ -1911,7 +1911,7 @@
       "headers": {
         "name": "Nombre del rol",
         "permissionSets": "Permisos",
-        "createdAt": "Creado el"
+        "createdAt": "Fecha de registro"
       },
       "emptyMessage": "No se encontraron roles. Haz clic en el botón crear para añadir un nuevo rol.",
       "noPermissionSetsAssigned": "Sin permisos asignados",
@@ -1941,7 +1941,7 @@
       "roleDetails": "Detalles del rol",
       "roleDetailsDescription": "Ver y gestionar información y permisos del rol",
       "name": "Nombre",
-      "createdAt": "Creado el",
+      "createdAt": "Fecha de registro",
       "permissionSets": "Permisos",
       "editRole": "Editar rol"
     }
