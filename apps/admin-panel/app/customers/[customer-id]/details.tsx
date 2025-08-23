@@ -9,6 +9,8 @@ import { Button } from "@lana/web/ui/button"
 
 import { formatDate } from "@lana/web/utils"
 
+import { Label } from "@lana/web/ui/label"
+
 import UpdateTelegramIdDialog from "./update-telegram-id"
 import UpdateEmailDialog from "./update-email"
 import FreezeDepositAccountDialog from "./freeze-deposit-account"
@@ -56,17 +58,18 @@ export const CustomerDetailsCard: React.FC<CustomerDetailsCardProps> = ({ custom
 
   const details: DetailItemProps[] = [
     {
-      label: t("labels.email"),
-      value: (
-        <button
-          type="button"
-          className="flex items-center gap-2"
-          onClick={() => setOpenUpdateEmailDialog(true)}
-        >
-          {customer.email}
-          <PiPencilSimpleLineLight className="w-5 h-5 cursor-pointer text-primary" />
-        </button>
+      label: (
+        <Label className="flex items-center font-semibold">
+          <span>{t("labels.email")}</span>
+          <div className="cursor-pointer text-primary px-1">
+            <PiPencilSimpleLineLight
+              onClick={() => setOpenUpdateEmailDialog(true)}
+              className="w-4 h-4"
+            />
+          </div>
+        </Label>
       ),
+      value: customer.email,
     },
     { label: t("labels.createdOn"), value: formatDate(customer.createdAt) },
     {
@@ -86,17 +89,18 @@ export const CustomerDetailsCard: React.FC<CustomerDetailsCardProps> = ({ custom
       value: getCustomerTypeDisplay(customer.customerType),
     },
     {
-      label: t("labels.telegram"),
-      value: (
-        <button
-          type="button"
-          className="flex items-center gap-2"
-          onClick={() => setOpenUpdateTelegramIdDialog(true)}
-        >
-          {customer.telegramId}
-          <PiPencilSimpleLineLight className="w-5 h-5 cursor-pointer text-primary" />
-        </button>
+      label: (
+        <Label className="flex items-center font-semibold">
+          <span>{t("labels.telegram")}</span>
+          <div className="cursor-pointer text-primary px-1">
+            <PiPencilSimpleLineLight
+              onClick={() => setOpenUpdateTelegramIdDialog(true)}
+              className="w-4 h-4"
+            />
+          </div>
+        </Label>
       ),
+      value: customer.telegramId,
     },
   ]
 
