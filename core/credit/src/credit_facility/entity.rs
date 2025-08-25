@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use derive_builder::Builder;
-use rust_decimal::Decimal;
 #[cfg(feature = "json-schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -66,7 +65,7 @@ pub enum CreditFacilityEvent {
         audit_info: AuditInfo,
     },
     CollateralizationRatioChanged {
-        collateralization_ratio: Option<Decimal>,
+        collateralization_ratio: CollateralizationRatio,
         audit_info: AuditInfo,
     },
     Matured {},
@@ -540,14 +539,18 @@ impl CreditFacility {
             .unwrap_or(CollateralizationState::NoCollateral)
     }
 
-    pub fn last_collateralization_ratio(&self) -> Option<Decimal> {
-        self.events.iter_all().rev().find_map(|event| match event {
-            CreditFacilityEvent::CollateralizationRatioChanged {
-                collateralization_ratio: ratio,
-                ..
-            } => *ratio,
-            _ => None,
-        })
+    pub fn last_collateralization_ratio(&self) -> CollateralizationRatio {
+        self.events
+            .iter_all()
+            .rev()
+            .find_map(|event| match event {
+                CreditFacilityEvent::CollateralizationRatioChanged {
+                    collateralization_ratio,
+                    ..
+                } => Some(*collateralization_ratio),
+                _ => None,
+            })
+            .unwrap_or_default()
     }
 
     fn is_fully_collateralized(&self) -> bool {

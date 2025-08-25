@@ -1,6 +1,7 @@
 mod cvl;
 
 use chrono::{DateTime, TimeZone, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "json-schema")]
@@ -526,6 +527,19 @@ impl InterestAccrualCycleIdx {
 pub enum CollateralAction {
     Add,
     Remove,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-schema", derive(JsonSchema))]
+pub enum CollateralizationRatio {
+    Finite(Decimal),
+    Infinite,
+}
+
+impl Default for CollateralizationRatio {
+    fn default() -> Self {
+        Self::Finite(Decimal::ZERO)
+    }
 }
 
 #[derive(
