@@ -26,8 +26,9 @@ use crate::{
     obligation_installment::ObligationInstallment,
     primitives::{
         CalaAccountId, CalaAccountSetId, CollateralAction, CollateralUpdate, CreditFacilityId,
-        CustomerType, DisbursedReceivableAccountCategory, DisbursedReceivableAccountType,
-        InterestReceivableAccountType, LedgerOmnibusAccountIds, LedgerTxId, Satoshis, UsdCents,
+        CreditFacilityProposalId, CustomerType, DisbursedReceivableAccountCategory,
+        DisbursedReceivableAccountType, InterestReceivableAccountType, LedgerOmnibusAccountIds,
+        LedgerTxId, Satoshis, UsdCents,
     },
 };
 
@@ -194,6 +195,7 @@ impl CreditLedger {
         templates::CancelDisbursal::init(cala).await?;
         templates::ConfirmDisbursal::init(cala).await?;
         templates::ReserveForLiquidation::init(cala).await?;
+        templates::CreateCreditFacilityProposal::init(cala).await?;
 
         let collateral_omnibus_normal_balance_type = DebitOrCredit::Debit;
         let collateral_omnibus_account_ids = Self::find_or_create_omnibus_account(
@@ -942,6 +944,39 @@ impl CreditLedger {
         })
     }
 
+    pub async fn get_credit_facility_proposal_balance(
+        &self,
+        CreditFacilityProposalAccountIds {
+            facility_account_id,
+            collateral_account_id,
+        }: CreditFacilityProposalAccountIds,
+    ) -> Result<CreditFacilityProposalBalanceSummary, CreditLedgerError> {
+        let facility_id = (self.journal_id, facility_account_id, self.usd);
+        let collateral_id = (self.journal_id, collateral_account_id, self.btc);
+
+        let balances = self
+            .cala
+            .balances()
+            .find_all(&[facility_id, collateral_id])
+            .await?;
+
+        let facility = if let Some(b) = balances.get(&facility_id) {
+            UsdCents::try_from_usd(b.details.pending.cr_balance)?
+        } else {
+            UsdCents::ZERO
+        };
+
+        let collateral = if let Some(b) = balances.get(&collateral_id) {
+            Satoshis::try_from_btc(b.settled())?
+        } else {
+            Satoshis::ZERO
+        };
+
+        Ok(CreditFacilityProposalBalanceSummary::new(
+            facility, collateral,
+        ))
+    }
+
     pub async fn get_credit_facility_balance(
         &self,
         CreditFacilityAccountIds {
@@ -1408,6 +1443,36 @@ impl CreditLedger {
         Ok(())
     }
 
+    async fn create_credit_facility_proposal(
+        &self,
+        mut op: cala_ledger::LedgerOperation<'_>,
+        CreditFacilityProposalCreation {
+            tx_id,
+            tx_ref,
+            credit_facility_proposal_account_ids,
+            facility_amount,
+        }: CreditFacilityProposalCreation,
+    ) -> Result<(), CreditLedgerError> {
+        self.cala
+            .post_transaction_in_op(
+                &mut op,
+                tx_id,
+                templates::CREATE_CREDIT_FACILITY_PROPOSAL_CODE,
+                templates::CreateCreditFacilityProposalParams {
+                    journal_id: self.journal_id,
+                    credit_omnibus_account: self.facility_omnibus_account_ids.account_id,
+                    credit_facility_account: credit_facility_proposal_account_ids
+                        .facility_account_id,
+                    facility_amount: facility_amount.to_usd(),
+                    currency: self.usd,
+                    external_id: tx_ref,
+                },
+            )
+            .await?;
+        op.commit().await?;
+        Ok(())
+    }
+
     pub async fn activate_credit_facility(
         &self,
         op: es_entity::DbOpWithTime<'_>,
@@ -1735,6 +1800,34 @@ impl CreditLedger {
         }
     }
 
+    pub(super) async fn handle_facility_proposal_create(
+        &self,
+        op: es_entity::DbOp<'_>,
+        credit_facility_proposal: &crate::CreditFacilityProposal,
+    ) -> Result<(), CreditLedgerError> {
+        let mut op = self
+            .cala
+            .ledger_operation_from_db_op(op.with_db_time().await?);
+
+        self.create_accounts_for_credit_facility_proposal(
+            &mut op,
+            credit_facility_proposal.id,
+            credit_facility_proposal.account_ids,
+        )
+        .await?;
+
+        self.add_credit_facility_control_to_account(
+            &mut op,
+            credit_facility_proposal.account_ids.facility_account_id,
+        )
+        .await?;
+
+        self.create_credit_facility_proposal(op, credit_facility_proposal.creation_data())
+            .await?;
+
+        Ok(())
+    }
+
     pub(super) async fn handle_facility_create(
         &self,
         op: es_entity::DbOp<'_>,
@@ -1763,6 +1856,45 @@ impl CreditLedger {
 
         self.create_credit_facility(op, credit_facility.creation_data())
             .await?;
+
+        Ok(())
+    }
+    async fn create_accounts_for_credit_facility_proposal(
+        &self,
+        op: &mut cala_ledger::LedgerOperation<'_>,
+        credit_facility_id: CreditFacilityProposalId,
+        account_ids: CreditFacilityProposalAccountIds,
+    ) -> Result<(), CreditLedgerError> {
+        let CreditFacilityProposalAccountIds {
+            facility_account_id,
+            collateral_account_id,
+        } = account_ids;
+
+        let collateral_reference = &format!("credit-facility-collateral:{credit_facility_id}");
+        let collateral_name =
+            &format!("Credit Facility Collateral Account for {credit_facility_id}");
+        self.create_account_in_op(
+            op,
+            collateral_account_id,
+            self.internal_account_sets.collateral,
+            collateral_reference,
+            collateral_name,
+            collateral_name,
+        )
+        .await?;
+
+        let facility_reference = &format!("credit-facility-obs-facility:{credit_facility_id}");
+        let facility_name =
+            &format!("Off-Balance-Sheet Facility Account for Credit Facility {credit_facility_id}");
+        self.create_account_in_op(
+            op,
+            facility_account_id,
+            self.internal_account_sets.facility,
+            facility_reference,
+            facility_name,
+            facility_name,
+        )
+        .await?;
 
         Ok(())
     }
