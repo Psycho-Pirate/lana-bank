@@ -1062,7 +1062,13 @@ type DepositModuleConfig {
 	chartOfAccountPrivateCompanyDepositAccountsParentCode: String
 	chartOfAccountBankDepositAccountsParentCode: String
 	chartOfAccountFinancialInstitutionDepositAccountsParentCode: String
-	chartOfAccountNonDomiciledCompanyDepositAccountsParentCode: String
+	chartOfAccountNonDomiciledIndividualDepositAccountsParentCode: String
+	chartOfAccountsFrozenIndividualDepositAccountsParentCode: String
+	chartOfAccountsFrozenGovernmentEntityDepositAccountsParentCode: String
+	chartOfAccountFrozenPrivateCompanyDepositAccountsParentCode: String
+	chartOfAccountFrozenBankDepositAccountsParentCode: String
+	chartOfAccountFrozenFinancialInstitutionDepositAccountsParentCode: String
+	chartOfAccountFrozenNonDomiciledIndividualDepositAccountsParentCode: String
 }
 
 input DepositModuleConfigureInput {
@@ -1073,6 +1079,12 @@ input DepositModuleConfigureInput {
 	chartOfAccountBankDepositAccountsParentCode: String!
 	chartOfAccountFinancialInstitutionDepositAccountsParentCode: String!
 	chartOfAccountNonDomiciledIndividualDepositAccountsParentCode: String!
+	chartOfAccountsFrozenIndividualDepositAccountsParentCode: String!
+	chartOfAccountsFrozenGovernmentEntityDepositAccountsParentCode: String!
+	chartOfAccountFrozenPrivateCompanyDepositAccountsParentCode: String!
+	chartOfAccountFrozenBankDepositAccountsParentCode: String!
+	chartOfAccountFrozenFinancialInstitutionDepositAccountsParentCode: String!
+	chartOfAccountFrozenNonDomiciledIndividualDepositAccountsParentCode: String!
 }
 
 type DepositModuleConfigurePayload {
