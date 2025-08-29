@@ -87,14 +87,12 @@ where
         db: &mut DbOp<'_>,
         name: String,
         permission_sets: HashSet<PermissionSetId>,
-        audit_info: &AuditInfo,
     ) -> Result<Role, RoleError> {
         let existing = self.role_repo.find_by_name(&name).await;
         let role = if matches!(existing, Err(ref e) if e.was_not_found()) {
             let new_role = NewRole::builder()
                 .id(RoleId::new())
                 .name(name)
-                .audit_info(audit_info.clone())
                 .initial_permission_sets(permission_sets.clone())
                 .build()
                 .expect("all fields for new role provided");
@@ -123,8 +121,7 @@ where
         permission_sets: &[PermissionSet],
         predefined_roles: &[(&'static str, &[&'static str])],
     ) -> Result<Role, RoleError> {
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry_in_tx(
                 db,
@@ -143,7 +140,6 @@ where
                 db,
                 ROLE_NAME_SUPERUSER.to_owned(),
                 all_permission_sets.values().copied().collect(),
-                &audit_info,
             )
             .await?;
 
@@ -154,9 +150,7 @@ where
                 .copied()
                 .collect::<HashSet<_>>();
 
-            let _ = self
-                .create_role(db, name.to_string(), sets, &audit_info)
-                .await;
+            let _ = self.create_role(db, name.to_string(), sets).await;
         }
 
         Ok(superuser_role)

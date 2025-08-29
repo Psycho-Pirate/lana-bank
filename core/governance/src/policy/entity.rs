@@ -3,7 +3,6 @@ use derive_builder::Builder;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use audit::AuditInfo;
 use es_entity::*;
 
 use super::{error::PolicyError, rules::ApprovalRules};
@@ -18,11 +17,9 @@ pub enum PolicyEvent {
         id: PolicyId,
         process_type: ApprovalProcessType,
         rules: ApprovalRules,
-        audit_info: AuditInfo,
     },
     ApprovalRulesUpdated {
         rules: ApprovalRules,
-        audit_info: AuditInfo,
     },
 }
 
@@ -50,7 +47,6 @@ impl Policy {
         &self,
         id: ApprovalProcessId,
         target_ref: String,
-        audit_info: AuditInfo,
     ) -> NewApprovalProcess {
         NewApprovalProcess::builder()
             .id(id)
@@ -58,7 +54,6 @@ impl Policy {
             .policy_id(self.id)
             .process_type(self.process_type.clone())
             .rules(self.rules)
-            .audit_info(audit_info)
             .build()
             .expect("failed to build new approval process")
     }
@@ -68,7 +63,6 @@ impl Policy {
         committee_id: CommitteeId,
         n_committee_members: usize,
         threshold: usize,
-        audit_info: AuditInfo,
     ) -> Result<Idempotent<()>, PolicyError> {
         if threshold < 1 {
             return Err(PolicyError::PolicyThresholdTooLow(committee_id, threshold));
@@ -91,10 +85,8 @@ impl Policy {
             committee_id,
         };
 
-        self.events.push(PolicyEvent::ApprovalRulesUpdated {
-            rules: self.rules,
-            audit_info,
-        });
+        self.events
+            .push(PolicyEvent::ApprovalRulesUpdated { rules: self.rules });
         Ok(Idempotent::Executed(()))
     }
 }
@@ -128,8 +120,6 @@ pub struct NewPolicy {
     pub(super) id: PolicyId,
     pub(super) process_type: ApprovalProcessType,
     pub(super) rules: ApprovalRules,
-    #[builder(setter(into))]
-    pub audit_info: AuditInfo,
 }
 
 impl NewPolicy {
@@ -150,7 +140,6 @@ impl IntoEvents<PolicyEvent> for NewPolicy {
                 id: self.id,
                 process_type: self.process_type,
                 rules: self.rules,
-                audit_info: self.audit_info,
             }],
         )
     }
@@ -158,16 +147,8 @@ impl IntoEvents<PolicyEvent> for NewPolicy {
 
 #[cfg(test)]
 mod test {
-    use audit::{AuditEntryId, AuditInfo};
 
     use super::*;
-
-    fn dummy_audit_info() -> AuditInfo {
-        AuditInfo {
-            audit_entry_id: AuditEntryId::from(1),
-            sub: "sub".to_string(),
-        }
-    }
 
     fn init_events() -> EntityEvents<PolicyEvent> {
         EntityEvents::init(
@@ -176,7 +157,6 @@ mod test {
                 id: PolicyId::new(),
                 process_type: ApprovalProcessType::new("test"),
                 rules: ApprovalRules::SystemAutoApprove,
-                audit_info: dummy_audit_info(),
             }],
         )
     }
@@ -187,14 +167,8 @@ mod test {
         let committee_id = CommitteeId::new();
         let n_committee_members = 1;
         let threshold = 1;
-        let audit_info = dummy_audit_info();
         let _ = policy
-            .assign_committee(
-                committee_id,
-                n_committee_members,
-                threshold,
-                audit_info.clone(),
-            )
+            .assign_committee(committee_id, n_committee_members, threshold)
             .unwrap();
         assert_eq!(policy.committee_id(), Some(committee_id));
         assert_eq!(
@@ -212,13 +186,7 @@ mod test {
         let committee_id = CommitteeId::new();
         let n_committee_members = 1;
         let threshold = 2;
-        let audit_info = dummy_audit_info();
-        let res = policy.assign_committee(
-            committee_id,
-            n_committee_members,
-            threshold,
-            audit_info.clone(),
-        );
+        let res = policy.assign_committee(committee_id, n_committee_members, threshold);
 
         assert!(matches!(
             res,
@@ -232,13 +200,7 @@ mod test {
         let committee_id = CommitteeId::new();
         let n_committee_members = 1;
         let threshold = 0;
-        let audit_info = dummy_audit_info();
-        let res = policy.assign_committee(
-            committee_id,
-            n_committee_members,
-            threshold,
-            audit_info.clone(),
-        );
+        let res = policy.assign_committee(committee_id, n_committee_members, threshold);
 
         assert!(matches!(res, Err(PolicyError::PolicyThresholdTooLow(_, _))));
     }

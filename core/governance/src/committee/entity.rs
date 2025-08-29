@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 
 use es_entity::*;
 
-use audit::AuditInfo;
-
 use crate::primitives::{CommitteeId, CommitteeMemberId};
 
 use super::error::CommitteeError;
@@ -18,19 +16,9 @@ use super::error::CommitteeError;
 #[serde(tag = "type", rename_all = "snake_case")]
 #[es_event(id = "CommitteeId")]
 pub enum CommitteeEvent {
-    Initialized {
-        id: CommitteeId,
-        name: String,
-        audit_info: AuditInfo,
-    },
-    MemberAdded {
-        member_id: CommitteeMemberId,
-        audit_info: AuditInfo,
-    },
-    MemberRemoved {
-        member_id: CommitteeMemberId,
-        audit_info: AuditInfo,
-    },
+    Initialized { id: CommitteeId, name: String },
+    MemberAdded { member_id: CommitteeMemberId },
+    MemberRemoved { member_id: CommitteeMemberId },
 }
 
 #[derive(EsEntity, Builder)]
@@ -51,28 +39,22 @@ impl Committee {
     pub(crate) fn add_member(
         &mut self,
         member_id: CommitteeMemberId,
-        audit_info: AuditInfo,
     ) -> Result<(), CommitteeError> {
         if self.members().contains(&member_id) {
             return Err(CommitteeError::MemberAlreadyAdded(member_id));
         }
 
-        self.events.push(CommitteeEvent::MemberAdded {
-            member_id,
-            audit_info,
-        });
+        self.events.push(CommitteeEvent::MemberAdded { member_id });
 
         Ok(())
     }
 
-    pub(crate) fn remove_member(&mut self, member_id: CommitteeMemberId, audit_info: AuditInfo) {
+    pub(crate) fn remove_member(&mut self, member_id: CommitteeMemberId) {
         if !self.members().contains(&member_id) {
             return;
         }
-        self.events.push(CommitteeEvent::MemberRemoved {
-            member_id,
-            audit_info,
-        });
+        self.events
+            .push(CommitteeEvent::MemberRemoved { member_id });
     }
 
     pub fn n_members(&self) -> usize {
@@ -122,8 +104,6 @@ pub struct NewCommittee {
     #[builder(setter(into))]
     pub(super) id: CommitteeId,
     pub(super) name: String,
-    #[builder(setter(into))]
-    pub audit_info: AuditInfo,
 }
 
 impl NewCommittee {
@@ -139,7 +119,6 @@ impl IntoEvents<CommitteeEvent> for NewCommittee {
             [CommitteeEvent::Initialized {
                 id: self.id,
                 name: self.name,
-                audit_info: self.audit_info,
             }],
         )
     }

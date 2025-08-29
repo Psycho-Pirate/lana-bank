@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashSet;
 
-use audit::AuditInfo;
 use es_entity::*;
 
 use crate::{PermissionSetId, primitives::RoleId};
@@ -17,15 +16,12 @@ pub enum RoleEvent {
         id: RoleId,
         name: String,
         permission_set_ids: HashSet<PermissionSetId>,
-        audit_info: AuditInfo,
     },
     PermissionSetAdded {
         permission_set_id: PermissionSetId,
-        audit_info: AuditInfo,
     },
     PermissionSetRemoved {
         permission_set_id: PermissionSetId,
-        audit_info: AuditInfo,
     },
 }
 
@@ -49,7 +45,6 @@ impl Role {
     pub(crate) fn add_permission_set(
         &mut self,
         permission_set_id: PermissionSetId,
-        audit_info: AuditInfo,
     ) -> Idempotent<()> {
         idempotency_guard!(
             self.events.iter_all().rev(),
@@ -57,10 +52,8 @@ impl Role {
             => RoleEvent::PermissionSetRemoved { permission_set_id: id, .. } if permission_set_id == *id
         );
 
-        self.events.push(RoleEvent::PermissionSetAdded {
-            permission_set_id,
-            audit_info,
-        });
+        self.events
+            .push(RoleEvent::PermissionSetAdded { permission_set_id });
         self.permission_sets.insert(permission_set_id);
 
         Idempotent::Executed(())
@@ -69,7 +62,6 @@ impl Role {
     pub(crate) fn remove_permission_set(
         &mut self,
         permission_set_id: PermissionSetId,
-        audit_info: AuditInfo,
     ) -> Idempotent<()> {
         idempotency_guard!(
             self.events.iter_all().rev(),
@@ -77,10 +69,8 @@ impl Role {
             => RoleEvent::PermissionSetAdded { permission_set_id: id, ..} if permission_set_id == *id
         );
 
-        self.events.push(RoleEvent::PermissionSetRemoved {
-            permission_set_id,
-            audit_info,
-        });
+        self.events
+            .push(RoleEvent::PermissionSetRemoved { permission_set_id });
         self.permission_sets.remove(&permission_set_id);
 
         Idempotent::Executed(())
@@ -134,7 +124,6 @@ pub struct NewRole {
     pub(super) name: String,
     #[builder(default)]
     pub(super) initial_permission_sets: HashSet<PermissionSetId>,
-    pub(super) audit_info: AuditInfo,
 }
 
 impl NewRole {
@@ -151,7 +140,6 @@ impl IntoEvents<RoleEvent> for NewRole {
                 id: self.id,
                 name: self.name,
                 permission_set_ids: self.initial_permission_sets,
-                audit_info: self.audit_info,
             }],
         )
     }

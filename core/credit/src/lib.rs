@@ -463,8 +463,7 @@ where
         terms: TermValues,
         custodian_id: Option<impl Into<CustodianId> + std::fmt::Debug + Copy>,
     ) -> Result<CreditFacilityProposal, CoreCreditError> {
-        let audit_info = self
-            .subject_can_create(sub, true)
+        self.subject_can_create(sub, true)
             .await?
             .expect("audit info missing");
 
@@ -491,12 +490,7 @@ where
 
             let wallet = self
                 .custody
-                .create_wallet_in_op(
-                    &mut db,
-                    audit_info.clone(),
-                    custodian_id,
-                    &format!("CF {proposal_id}"),
-                )
+                .create_wallet_in_op(&mut db, custodian_id, &format!("CF {proposal_id}"))
                 .await?;
 
             Some(wallet.id)
@@ -513,7 +507,6 @@ where
             .terms(terms)
             .amount(amount)
             .account_ids(account_ids)
-            .audit_info(audit_info.clone())
             .build()
             .expect("could not build new credit facility");
 
@@ -549,8 +542,7 @@ where
         terms: TermValues,
         custodian_id: Option<impl Into<CustodianId> + std::fmt::Debug + Copy>,
     ) -> Result<CreditFacility, CoreCreditError> {
-        let audit_info = self
-            .subject_can_create(sub, true)
+        self.subject_can_create(sub, true)
             .await?
             .expect("audit info missing");
 
@@ -578,12 +570,7 @@ where
 
             let wallet = self
                 .custody
-                .create_wallet_in_op(
-                    &mut db,
-                    audit_info.clone(),
-                    custodian_id,
-                    &format!("CF {id}"),
-                )
+                .create_wallet_in_op(&mut db, custodian_id, &format!("CF {id}"))
                 .await?;
 
             Some(wallet.id)
@@ -607,7 +594,6 @@ where
             .account_ids(account_ids)
             .disbursal_credit_account_id(disbursal_credit_account_id.into())
             .public_id(public_id.id)
-            .audit_info(audit_info.clone())
             .build()
             .expect("could not build new credit facility");
 
@@ -697,8 +683,7 @@ where
         credit_facility_id: CreditFacilityId,
         amount: UsdCents,
     ) -> Result<Disbursal, CoreCreditError> {
-        let audit_info = self
-            .subject_can_initiate_disbursal(sub, true)
+        self.subject_can_initiate_disbursal(sub, true)
             .await?
             .expect("audit info missing");
 
@@ -757,7 +742,6 @@ where
             .due_date(due_date)
             .overdue_date(overdue_date)
             .liquidation_date(liquidation_date)
-            .audit_info(audit_info)
             .public_id(public_id.id)
             .build()?;
 
@@ -818,8 +802,7 @@ where
         let credit_facility_id = credit_facility_id.into();
         let effective = effective.into();
 
-        let audit_info = self
-            .subject_can_update_collateral(sub, true)
+        self.subject_can_update_collateral(sub, true)
             .await?
             .expect("audit info missing");
 
@@ -837,7 +820,6 @@ where
                 credit_facility.collateral_id,
                 updated_collateral,
                 effective,
-                &audit_info,
             )
             .await?
         {
@@ -878,8 +860,7 @@ where
         amount: UsdCents,
         effective: impl Into<chrono::NaiveDate> + std::fmt::Debug + Copy,
     ) -> Result<CreditFacility, CoreCreditError> {
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 CoreCreditObject::all_obligations(),
@@ -898,18 +879,11 @@ where
 
         let payment = self
             .payments
-            .record_in_op(&mut db, credit_facility_id, amount, &audit_info)
+            .record_in_op(&mut db, credit_facility_id, amount)
             .await?;
 
         self.obligations
-            .apply_installment_in_op(
-                db,
-                credit_facility_id,
-                payment.id,
-                amount,
-                effective.into(),
-                &audit_info,
-            )
+            .apply_installment_in_op(db, credit_facility_id, payment.id, amount, effective.into())
             .await?;
 
         Ok(credit_facility)
@@ -940,8 +914,7 @@ where
     ) -> Result<CreditFacility, CoreCreditError> {
         let id = credit_facility_id.into();
 
-        let audit_info = self
-            .subject_can_complete(sub, true)
+        self.subject_can_complete(sub, true)
             .await?
             .expect("audit info missing");
 
@@ -949,7 +922,7 @@ where
 
         let credit_facility = match self
             .facilities
-            .complete_in_op(&mut db, id, self.config.upgrade_buffer_cvl_pct, &audit_info)
+            .complete_in_op(&mut db, id, self.config.upgrade_buffer_cvl_pct)
             .await?
         {
             CompletionOutcome::Ignored(facility) => facility,
@@ -961,7 +934,6 @@ where
                         facility.collateral_id,
                         Satoshis::ZERO,
                         crate::time::now().date_naive(),
-                        &audit_info,
                     )
                     .await?;
 

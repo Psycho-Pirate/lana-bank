@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 
-use audit::AuditInfo;
-
 use es_entity::*;
 
 use crate::primitives::*;
@@ -23,17 +21,14 @@ pub enum ChartEvent {
         id: ChartId,
         name: String,
         reference: String,
-        audit_info: AuditInfo,
     },
     NodeAdded {
         spec: AccountSpec,
         ledger_account_set_id: CalaAccountSetId,
-        audit_info: AuditInfo,
     },
     ManualTransactionAccountAdded {
         code: AccountCode,
         ledger_account_id: LedgerAccountId,
-        audit_info: AuditInfo,
     },
 }
 
@@ -54,7 +49,6 @@ impl Chart {
         &mut self,
         spec: &AccountSpec,
         journal_id: CalaJournalId,
-        audit_info: AuditInfo,
     ) -> Idempotent<NewChartAccountDetails> {
         if self.all_accounts.contains_key(&spec.code) {
             return Idempotent::Ignored;
@@ -63,7 +57,6 @@ impl Chart {
         self.events.push(ChartEvent::NodeAdded {
             spec: spec.clone(),
             ledger_account_set_id,
-            audit_info,
         });
         let parent_account_set_id = if let Some(parent) = spec.parent.as_ref() {
             self.all_accounts.get(parent).map(
@@ -105,7 +98,6 @@ impl Chart {
         code: AccountCode,
         name: AccountName,
         journal_id: CalaJournalId,
-        audit_info: AuditInfo,
     ) -> Result<Idempotent<NewChartAccountDetails>, ChartOfAccountsError> {
         let parent_normal_balance_type = self
             .all_accounts
@@ -122,7 +114,7 @@ impl Chart {
             parent_normal_balance_type,
         )?;
 
-        Ok(self.create_node_without_verifying_parent(&spec, journal_id, audit_info))
+        Ok(self.create_node_without_verifying_parent(&spec, journal_id))
     }
 
     pub(super) fn trial_balance_account_ids_from_new_accounts(
@@ -256,7 +248,6 @@ impl Chart {
     pub fn manual_transaction_account(
         &mut self,
         account_id_or_code: AccountIdOrCode,
-        audit_info: AuditInfo,
     ) -> Result<ManualAccountFromChart, ChartOfAccountsError> {
         match account_id_or_code {
             AccountIdOrCode::Id(id) => Ok(match self.manual_transaction_accounts.get(&id) {
@@ -275,7 +266,6 @@ impl Chart {
                         self.events.push(ChartEvent::ManualTransactionAccountAdded {
                             code: code.clone(),
                             ledger_account_id: id,
-                            audit_info,
                         });
 
                         if let Some(AccountDetails {
@@ -373,8 +363,6 @@ pub struct NewChart {
     pub(super) id: ChartId,
     pub(super) name: String,
     pub(super) reference: String,
-    #[builder(setter(into))]
-    pub audit_info: AuditInfo,
 }
 
 impl NewChart {
@@ -391,7 +379,6 @@ impl IntoEvents<ChartEvent> for NewChart {
                 id: self.id,
                 name: self.name,
                 reference: self.reference,
-                audit_info: self.audit_info,
             }],
         )
     }
@@ -417,16 +404,8 @@ pub struct NewChartAccountDetails {
 
 #[cfg(test)]
 mod test {
-    use audit::{AuditEntryId, AuditInfo};
 
     use super::*;
-
-    fn dummy_audit_info() -> AuditInfo {
-        AuditInfo {
-            audit_entry_id: AuditEntryId::from(1),
-            sub: "sub".to_string(),
-        }
-    }
 
     fn chart_from(events: Vec<ChartEvent>) -> Chart {
         Chart::try_from_events(EntityEvents::init(ChartId::new(), events)).unwrap()
@@ -437,7 +416,6 @@ mod test {
             id: ChartId::new(),
             name: "Test Chart".to_string(),
             reference: "test-chart".to_string(),
-            audit_info: dummy_audit_info(),
         }]
     }
 
@@ -459,7 +437,6 @@ mod test {
                 )
                 .unwrap(),
                 CalaJournalId::new(),
-                dummy_audit_info(),
             )
             .expect("Already executed");
         let NewChartAccountDetails {
@@ -475,7 +452,6 @@ mod test {
                 )
                 .unwrap(),
                 CalaJournalId::new(),
-                dummy_audit_info(),
             )
             .expect("Already executed");
         let NewChartAccountDetails {
@@ -491,7 +467,6 @@ mod test {
                 )
                 .unwrap(),
                 CalaJournalId::new(),
-                dummy_audit_info(),
             )
             .expect("Already executed");
 
@@ -522,7 +497,6 @@ mod test {
             code("1.9.1"),
             "Cash".parse::<AccountName>().unwrap(),
             CalaJournalId::new(),
-            dummy_audit_info(),
         );
 
         assert!(matches!(
@@ -544,7 +518,6 @@ mod test {
             )
             .unwrap(),
             CalaJournalId::new(),
-            dummy_audit_info(),
         );
         assert!(res.did_execute());
     }
@@ -581,7 +554,6 @@ mod test {
                 )
                 .unwrap(),
                 CalaJournalId::new(),
-                dummy_audit_info(),
             )
             .expect("Already executed");
 
@@ -598,7 +570,7 @@ mod test {
         let random_id = LedgerAccountId::new();
 
         let id = match chart
-            .manual_transaction_account(AccountIdOrCode::Id(random_id), dummy_audit_info())
+            .manual_transaction_account(AccountIdOrCode::Id(random_id))
             .unwrap()
         {
             ManualAccountFromChart::NonChartId(id) => id,
@@ -614,10 +586,7 @@ mod test {
         let before_count = chart.events.iter_all().count();
 
         let (account_set_id, new_account) = match chart
-            .manual_transaction_account(
-                AccountIdOrCode::Code(acct_code.clone()),
-                dummy_audit_info(),
-            )
+            .manual_transaction_account(AccountIdOrCode::Code(acct_code.clone()))
             .unwrap()
         {
             ManualAccountFromChart::NewAccount((account_set_id, new_account)) => {
@@ -654,10 +623,7 @@ mod test {
         let acct_code = code("1.1.1");
 
         let first = chart
-            .manual_transaction_account(
-                AccountIdOrCode::Code(acct_code.clone()),
-                dummy_audit_info(),
-            )
+            .manual_transaction_account(AccountIdOrCode::Code(acct_code.clone()))
             .unwrap();
         let ledger_id = match first {
             ManualAccountFromChart::NewAccount((_, new_account)) => new_account.id,
@@ -665,10 +631,7 @@ mod test {
         };
 
         let second = chart
-            .manual_transaction_account(
-                AccountIdOrCode::Code(acct_code.clone()),
-                dummy_audit_info(),
-            )
+            .manual_transaction_account(AccountIdOrCode::Code(acct_code.clone()))
             .unwrap();
         match second {
             ManualAccountFromChart::IdInChart(id) => assert_eq!(id, ledger_id.into()),
@@ -682,10 +645,7 @@ mod test {
         let acct_code = code("1.1.1");
 
         let ManualAccountFromChart::NewAccount((_, new_account)) = chart
-            .manual_transaction_account(
-                AccountIdOrCode::Code(acct_code.clone()),
-                dummy_audit_info(),
-            )
+            .manual_transaction_account(AccountIdOrCode::Code(acct_code.clone()))
             .unwrap()
         else {
             panic!("expected NewAccount");
@@ -693,7 +653,7 @@ mod test {
 
         let ledger_id = LedgerAccountId::from(new_account.id);
         let id = match chart
-            .manual_transaction_account(AccountIdOrCode::Id(ledger_id), dummy_audit_info())
+            .manual_transaction_account(AccountIdOrCode::Id(ledger_id))
             .unwrap()
         {
             ManualAccountFromChart::IdInChart(id) => id,
@@ -708,7 +668,7 @@ mod test {
         let bad_code = code("9.9.9");
 
         let err = chart
-            .manual_transaction_account(AccountIdOrCode::Code(bad_code.clone()), dummy_audit_info())
+            .manual_transaction_account(AccountIdOrCode::Code(bad_code.clone()))
             .unwrap_err();
 
         match err {
@@ -722,10 +682,7 @@ mod test {
         let (mut chart, _) = default_chart();
         let acct_code = code("1.1");
 
-        let res = chart.manual_transaction_account(
-            AccountIdOrCode::Code(acct_code.clone()),
-            dummy_audit_info(),
-        );
+        let res = chart.manual_transaction_account(AccountIdOrCode::Code(acct_code.clone()));
         assert!(matches!(res, Err(ChartOfAccountsError::NonLeafAccount(_))));
     }
 
@@ -738,8 +695,7 @@ mod test {
             .manual_transaction_accounts
             .insert(random_id, acct_code);
 
-        let res =
-            chart.manual_transaction_account(AccountIdOrCode::Id(random_id), dummy_audit_info());
+        let res = chart.manual_transaction_account(AccountIdOrCode::Id(random_id));
         assert!(matches!(res, Err(ChartOfAccountsError::NonLeafAccount(_))));
     }
 }

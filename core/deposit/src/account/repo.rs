@@ -27,7 +27,6 @@ where
     E: OutboxEventMarker<CoreDepositEvent>,
 {
     publisher: DepositPublisher<E>,
-    #[allow(dead_code)]
     pool: PgPool,
 }
 

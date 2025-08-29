@@ -90,8 +90,7 @@ where
         email: impl Into<String> + std::fmt::Debug,
         role: &Role,
     ) -> Result<User, UserError> {
-        let audit_info = self
-            .subject_can_create_user(sub, true)
+        self.subject_can_create_user(sub, true)
             .await?
             .expect("audit info missing");
 
@@ -102,7 +101,6 @@ where
         let new_user = NewUser::builder()
             .email(email.clone())
             .role_id(role.id)
-            .audit_info(audit_info.clone())
             .build()
             .expect("Could not build user");
         let user = self.repo.create_in_op(&mut db, new_user).await?;
@@ -231,14 +229,13 @@ where
     ) -> Result<User, UserError> {
         let id = user_id.into();
 
-        let audit_info = self
-            .subject_can_update_role_of_user(sub, id, true)
+        self.subject_can_update_role_of_user(sub, id, true)
             .await?
             .expect("audit info missing");
 
         let mut user = self.repo.find_by_id(id).await?;
 
-        if let Idempotent::Executed(previous) = user.update_role(role, audit_info) {
+        if let Idempotent::Executed(previous) = user.update_role(role) {
             self.authz
                 .revoke_role_from_subject(user.id, previous)
                 .await?;
@@ -257,8 +254,7 @@ where
         email: String,
         role: &Role,
     ) -> Result<User, UserError> {
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry_in_tx(
                 &mut *op,
@@ -273,7 +269,6 @@ where
                     .id(UserId::new())
                     .email(email)
                     .role_id(role.id)
-                    .audit_info(audit_info.clone())
                     .build()
                     .expect("all fields for new user provided");
 
@@ -282,7 +277,7 @@ where
             Err(e) => return Err(e),
             Ok(mut user) => {
                 // Update existing user's role if needed
-                if user.update_role(role, audit_info).did_execute() {
+                if user.update_role(role).did_execute() {
                     self.repo.update_in_op(op, &mut user).await?;
                 }
                 user

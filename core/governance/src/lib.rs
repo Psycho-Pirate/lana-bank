@@ -84,8 +84,7 @@ where
         process_type: ApprovalProcessType,
     ) -> Result<Policy, GovernanceError> {
         let mut db = self.policy_repo.begin_op().await?;
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry_in_tx(
                 &mut db,
@@ -98,7 +97,6 @@ where
             .id(PolicyId::new())
             .process_type(process_type)
             .rules(ApprovalRules::SystemAutoApprove)
-            .audit_info(audit_info)
             .build()
             .expect("Could not build new policy");
 
@@ -162,8 +160,7 @@ where
         threshold: usize,
     ) -> Result<Policy, GovernanceError> {
         let policy_id = policy_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 GovernanceObject::policy(policy_id),
@@ -176,7 +173,7 @@ where
 
         let mut policy = self.policy_repo.find_by_id(policy_id).await?;
         if policy
-            .assign_committee(committee.id, committee.n_members(), threshold, audit_info)?
+            .assign_committee(committee.id, committee.n_members(), threshold)?
             .did_execute()
         {
             let mut db_tx = self.policy_repo.begin_op().await?;
@@ -206,15 +203,14 @@ where
         process_type: ApprovalProcessType,
     ) -> Result<ApprovalProcess, GovernanceError> {
         let policy = self.policy_repo.find_by_process_type(process_type).await?;
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry(
                 GovernanceObject::all_approval_processes(),
                 GovernanceAction::APPROVAL_PROCESS_CREATE,
             )
             .await?;
-        let new_process = policy.spawn_process(id.into(), target_ref, audit_info);
+        let new_process = policy.spawn_process(id.into(), target_ref);
         let mut process = self.process_repo.create_in_op(db, new_process).await?;
         let eligible = self.eligible_voters_for_process(&process).await?;
         if self
@@ -237,8 +233,7 @@ where
             for<'a> TryFrom<&'a <<Perms as PermissionCheck>::Audit as AuditSvc>::Subject>,
     {
         let process_id = process_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 GovernanceObject::all_approval_processes(),
@@ -250,10 +245,7 @@ where
         let mut process = self.process_repo.find_by_id(process_id).await?;
         let eligible = self.eligible_voters_for_process(&process).await?;
 
-        if process
-            .approve(&eligible, member_id, audit_info)
-            .did_execute()
-        {
+        if process.approve(&eligible, member_id).did_execute() {
             let mut db = self.policy_repo.begin_op().await?;
             self.maybe_fire_concluded_event(db.begin().await?, eligible, &mut process)
                 .await?;
@@ -278,8 +270,7 @@ where
             for<'a> TryFrom<&'a <<Perms as PermissionCheck>::Audit as AuditSvc>::Subject>,
     {
         let process_id = process_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 GovernanceObject::approval_process(process_id),
@@ -297,10 +288,7 @@ where
         } else {
             HashSet::new()
         };
-        if process
-            .deny(&eligible, member_id, reason, audit_info)
-            .did_execute()
-        {
+        if process.deny(&eligible, member_id, reason).did_execute() {
             let mut db = self.policy_repo.begin_op().await?;
             self.maybe_fire_concluded_event(db.begin().await?, eligible, &mut process)
                 .await?;
@@ -319,8 +307,7 @@ where
         sub: &<<Perms as PermissionCheck>::Audit as AuditSvc>::Subject,
         name: String,
     ) -> Result<Committee, GovernanceError> {
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 GovernanceObject::all_committees(),
@@ -331,7 +318,6 @@ where
         let new_committee = NewCommittee::builder()
             .id(CommitteeId::new())
             .name(name)
-            .audit_info(audit_info)
             .build()
             .expect("Could not build new committee");
 
@@ -350,8 +336,7 @@ where
         eligible: HashSet<CommitteeMemberId>,
         process: &mut ApprovalProcess,
     ) -> Result<bool, GovernanceError> {
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry_in_tx(
                 &mut op,
@@ -361,7 +346,7 @@ where
             .await?;
 
         if let es_entity::Idempotent::Executed((approved, denied_reason)) =
-            process.check_concluded(eligible, audit_info)
+            process.check_concluded(eligible)
         {
             self.outbox
                 .publish_persisted(
@@ -391,8 +376,7 @@ where
         member_id: impl Into<CommitteeMemberId> + std::fmt::Debug,
     ) -> Result<Committee, GovernanceError> {
         let committee_id = committee_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 GovernanceObject::committee(committee_id),
@@ -401,7 +385,7 @@ where
             .await?;
 
         let mut committee = self.committee_repo.find_by_id(committee_id).await?;
-        committee.add_member(member_id.into(), audit_info)?;
+        committee.add_member(member_id.into())?;
         self.committee_repo.update(&mut committee).await?;
 
         Ok(committee)
@@ -415,8 +399,7 @@ where
         member_id: impl Into<CommitteeMemberId> + std::fmt::Debug,
     ) -> Result<Committee, GovernanceError> {
         let committee_id = committee_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 GovernanceObject::committee(committee_id),
@@ -425,7 +408,7 @@ where
             .await?;
 
         let mut committee = self.committee_repo.find_by_id(committee_id).await?;
-        committee.remove_member(member_id.into(), audit_info);
+        committee.remove_member(member_id.into());
         self.committee_repo.update(&mut committee).await?;
 
         Ok(committee)

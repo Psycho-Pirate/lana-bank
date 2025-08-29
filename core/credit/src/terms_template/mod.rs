@@ -62,15 +62,13 @@ where
         name: String,
         values: TermValues,
     ) -> Result<TermsTemplate, TermsTemplateError> {
-        let audit_info = self
-            .subject_can_create_terms_template(sub, true)
+        self.subject_can_create_terms_template(sub, true)
             .await?
             .expect("audit info missing");
         let new_terms_template = NewTermsTemplate::builder()
             .id(TermsTemplateId::new())
             .name(name)
             .values(values)
-            .audit_info(audit_info)
             .build()
             .expect("Could not build TermsTemplate");
 
@@ -100,13 +98,12 @@ where
         id: TermsTemplateId,
         values: TermValues,
     ) -> Result<TermsTemplate, TermsTemplateError> {
-        let audit_info = self
-            .subject_can_update_terms_template(sub, true)
+        self.subject_can_update_terms_template(sub, true)
             .await?
             .expect("audit info missing");
 
         let mut terms_template = self.repo.find_by_id(id).await?;
-        terms_template.update_values(values, audit_info);
+        terms_template.update_values(values);
 
         self.repo.update(&mut terms_template).await?;
 

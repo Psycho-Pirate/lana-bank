@@ -112,8 +112,7 @@ where
         telegram_id: impl Into<String> + std::fmt::Debug,
         customer_type: impl Into<CustomerType> + std::fmt::Debug,
     ) -> Result<Customer, CustomerError> {
-        let audit_info = self
-            .subject_can_create_customer(sub, true)
+        self.subject_can_create_customer(sub, true)
             .await?
             .expect("audit info missing");
 
@@ -132,7 +131,6 @@ where
             .telegram_id(telegram_id.into())
             .customer_type(customer_type)
             .public_id(public_id.id)
-            .audit_info(audit_info)
             .build()
             .expect("Could not build customer");
 
@@ -258,8 +256,7 @@ where
     ) -> Result<Customer, CustomerError> {
         let mut customer = self.repo.find_by_id(customer_id).await?;
 
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry_in_tx(
                 db,
@@ -268,7 +265,7 @@ where
             )
             .await?;
 
-        customer.start_kyc(applicant_id, audit_info);
+        customer.start_kyc(applicant_id);
 
         self.repo.update_in_op(db, &mut customer).await?;
 
@@ -284,8 +281,7 @@ where
     ) -> Result<Customer, CustomerError> {
         let mut customer = self.repo.find_by_id(customer_id).await?;
 
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry_in_tx(
                 db,
@@ -297,7 +293,7 @@ where
         if customer
             // TODO: this is wrong, we should pass the SumSub verification level
             // because we also have KYB approval
-            .approve_kyc(KycLevel::Basic, applicant_id, audit_info)
+            .approve_kyc(KycLevel::Basic, applicant_id)
             .did_execute()
         {
             self.repo.update_in_op(db, &mut customer).await?;
@@ -315,8 +311,7 @@ where
     ) -> Result<Customer, CustomerError> {
         let mut customer = self.repo.find_by_id(customer_id).await?;
 
-        let audit_info = self
-            .authz
+        self.authz
             .audit()
             .record_system_entry_in_tx(
                 db,
@@ -325,7 +320,7 @@ where
             )
             .await?;
 
-        if customer.decline_kyc(applicant_id, audit_info).did_execute() {
+        if customer.decline_kyc(applicant_id).did_execute() {
             self.repo.update_in_op(db, &mut customer).await?;
         }
 
@@ -348,8 +343,7 @@ where
         new_telegram_id: String,
     ) -> Result<Customer, CustomerError> {
         let customer_id = customer_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 CustomerObject::customer(customer_id),
@@ -358,10 +352,7 @@ where
             .await?;
 
         let mut customer = self.repo.find_by_id(customer_id).await?;
-        if customer
-            .update_telegram_id(new_telegram_id, audit_info)
-            .did_execute()
-        {
+        if customer.update_telegram_id(new_telegram_id).did_execute() {
             self.repo.update(&mut customer).await?;
         }
 
@@ -376,8 +367,7 @@ where
         new_email: String,
     ) -> Result<Customer, CustomerError> {
         let customer_id = customer_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 CustomerObject::customer(customer_id),
@@ -386,7 +376,7 @@ where
             .await?;
 
         let mut customer = self.repo.find_by_id(customer_id).await?;
-        if customer.update_email(new_email, audit_info).did_execute() {
+        if customer.update_email(new_email).did_execute() {
             self.repo.update(&mut customer).await?;
         }
 
@@ -404,8 +394,7 @@ where
         content_type: impl Into<String> + std::fmt::Debug,
     ) -> Result<Document, CustomerError> {
         let customer_id = customer_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 CustomerObject::all_customer_documents(),
@@ -416,7 +405,6 @@ where
         let document = self
             .document_storage
             .create_and_upload(
-                audit_info,
                 content,
                 filename,
                 content_type,
@@ -458,8 +446,7 @@ where
         document_id: impl Into<CustomerDocumentId> + std::fmt::Debug + Copy,
     ) -> Result<GeneratedDocumentDownloadLink, CustomerError> {
         let customer_document_id = document_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 CustomerObject::customer_document(customer_document_id),
@@ -469,7 +456,7 @@ where
 
         let link = self
             .document_storage
-            .generate_download_link(audit_info, customer_document_id)
+            .generate_download_link(customer_document_id)
             .await?;
 
         Ok(link)
@@ -482,8 +469,7 @@ where
         document_id: impl Into<CustomerDocumentId> + std::fmt::Debug + Copy,
     ) -> Result<(), CustomerError> {
         let customer_document_id = document_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 CustomerObject::customer_document(customer_document_id),
@@ -491,9 +477,7 @@ where
             )
             .await?;
 
-        self.document_storage
-            .delete(audit_info, customer_document_id)
-            .await?;
+        self.document_storage.delete(customer_document_id).await?;
 
         Ok(())
     }
@@ -505,8 +489,7 @@ where
         document_id: impl Into<CustomerDocumentId> + std::fmt::Debug + Copy,
     ) -> Result<Document, CustomerError> {
         let customer_document_id = document_id.into();
-        let audit_info = self
-            .authz
+        self.authz
             .enforce_permission(
                 sub,
                 CustomerObject::customer_document(customer_document_id),
@@ -514,10 +497,7 @@ where
             )
             .await?;
 
-        let document = self
-            .document_storage
-            .archive(audit_info, customer_document_id)
-            .await?;
+        let document = self.document_storage.archive(customer_document_id).await?;
 
         Ok(document)
     }
