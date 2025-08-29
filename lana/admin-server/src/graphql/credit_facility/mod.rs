@@ -177,6 +177,18 @@ impl CreditFacility {
             .is_ok())
     }
 
+    async fn user_can_record_payment_with_date(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<bool> {
+        let (app, sub) = crate::app_and_sub_from_ctx!(ctx);
+        Ok(app
+            .credit()
+            .subject_can_record_payment_with_date(sub, false)
+            .await
+            .is_ok())
+    }
+
     async fn user_can_complete(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         let (app, sub) = crate::app_and_sub_from_ctx!(ctx);
         Ok(app.credit().subject_can_complete(sub, false).await.is_ok())
@@ -236,6 +248,12 @@ crate::mutation_payload! { CreditFacilityCollateralUpdatePayload, credit_facilit
 
 #[derive(InputObject)]
 pub struct CreditFacilityPartialPaymentInput {
+    pub credit_facility_id: UUID,
+    pub amount: UsdCents,
+}
+
+#[derive(InputObject)]
+pub struct CreditFacilityPartialPaymentWithDateInput {
     pub credit_facility_id: UUID,
     pub amount: UsdCents,
     pub effective: Date,

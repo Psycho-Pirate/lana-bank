@@ -1592,7 +1592,22 @@ impl Mutation {
             CreditFacilityPartialPaymentPayload,
             CreditFacility,
             ctx,
-            app.credit().record_payment(
+            app.credit()
+                .record_payment(sub, input.credit_facility_id, input.amount,)
+        )
+    }
+
+    pub async fn credit_facility_partial_payment_with_date(
+        &self,
+        ctx: &Context<'_>,
+        input: CreditFacilityPartialPaymentWithDateInput,
+    ) -> async_graphql::Result<CreditFacilityPartialPaymentPayload> {
+        let (app, sub) = app_and_sub_from_ctx!(ctx);
+        exec_mutation!(
+            CreditFacilityPartialPaymentPayload,
+            CreditFacility,
+            ctx,
+            app.credit().record_payment_with_date(
                 sub,
                 input.credit_facility_id,
                 input.amount,
